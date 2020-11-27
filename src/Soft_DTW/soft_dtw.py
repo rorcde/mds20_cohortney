@@ -22,7 +22,10 @@ class Soft_DTW(nn.Module):
         # preparations
         assert len(x.shape) == len(y.shape)
         unsqueezed = False
-        if len(x.shape) < 3:
+        if len(x.shape) == 1:
+            x = x.unsqueeze(1)
+            y = y.unsqueeze(1)
+        if len(x.shape) == 2:
             x = x.unsqueeze(0)
             y = y.unsqueeze(0)
             unsqueezed = True
