@@ -9,7 +9,7 @@ from typing import List
 from torch.nn import functional as F
 
 
-def integral(f, left, right, npts=1000):
+def integral(f, left, right, npts=10000):
     grid = torch.FloatTensor(np.linspace(left.tolist(), right.tolist(), npts))
     out = f(grid)
     int_f = out.sum(0) * (grid[1, :] - grid[0, :])
@@ -36,7 +36,8 @@ class PointProcessStorage:
         for n in range(len(self.seqs)):
             cs, ts = self.seqs[n][:, 1], self.seqs[n][:, 0]
             Tn = self.Tns[n]
-            yield cs, ts, Tn
+            assert Tn > ts[-1]
+            yield cs.long(), ts.float(), Tn
 
 
 class DirichletMixtureModel:
@@ -137,6 +138,7 @@ class EM_clustering:
                     n_inner : int = 10):
         self.N = hp.N
         self.K = model.K
+        self.C = model.mu.shape[0]
         self.hp = hp
         self.model = model
         self.n_inner = n_inner
@@ -148,15 +150,15 @@ class EM_clustering:
 
     def learn_hp(self, niter=100):
         nll_history = []
-        r = torch.ones(self.N, self.K)
+        r = torch.rand(self.N, self.K)
         r = r / r.sum(1)[:, None]
         for _ in trange(niter):
             mu, A = self.m_step(r, self.n_inner)
-            nll1 = self.hp_nll(r, mu, A)
+            nll1 = self.hp_nll(r.sum(0) / self.N, mu, A)
 
             r2 = self.e_step()
             mu2, A2 = self.m_step(r2, self.n_inner)
-            nll2 = self.hp_nll(r2, mu2, A2)
+            nll2 = self.hp_nll(r2.sum(0) / self.N, mu2, A2)
 
             if nll1 < nll2:
                 nll_history.append(nll1.item())
@@ -170,34 +172,37 @@ class EM_clustering:
 
     def update_model(self, r, mu, A):
         Sigma = A
-        B = (1 / np.pi)**.5 * mu
+        B = (2 / np.pi)**.5 * mu
         self.model.update_A(A, Sigma)
         self.model.update_mu(mu, B)
         pi = r.sum(0) / self.N
         self.model.update_pi(pi)
 
-    def hp_nll(self, r, mu, A):
+    def hp_nll(self, pi, mu, A):
         """
-        Computes negative log-likelihood given responsibilities r, \mu, A up to a constant (!)
+        Computes negative log-likelihood given \pi, \mu, A up to a constant (!)
         """
+        assert torch.isclose(pi.sum(0), torch.ones_like(pi.sum(0))), pi
         nll = 0
 
-        for n, (c, t, Tn) in enumerate(self.hp):
-            k = r[n].argmax().item()
+        for n, (c, _, Tn) in enumerate(self.hp):
             g = self._get_g(n)
-            A_g = torch.tril((A[c.tolist(), c.tolist(), :, k] * g).sum(2), diagonal=-1) # L x L
-            lamda = mu[c.tolist(), k] + A_g.sum(-1)
+            A_g = (A[c.tolist(), c.tolist(), :, :] * g[:, :, :, None]).sum(2) # L x L x K
+            lamda = mu[c.tolist(), :] + A_g.sum(1)
+            assert (lamda > 0).all()
 
-            nll -= torch.log(lamda).sum(0)
+            int_g = self._get_int_g(n)
+            A_g = (A[:, c.tolist(), :, :] * int_g[None, :, :, None]).sum(2)# C x K
+            int_lambda = Tn * mu + A_g.sum(1)
+            #integral = self.integral_lambda(t, c, Tn, mu, A, int_g=self._get_int_g(n))
 
-            if len(self.gg) <= n:
-                integral, gg = self.integral_lambda(t, c, Tn, k, mu, A)
-                self.gg.append(gg)
-            else:
-                integral, _ = self.integral_lambda(t, c, Tn, k, mu, A, g=self.gg[n])
-            nll += integral.sum(0)
+            ll_lower_bound = (pi * (torch.log(lamda).sum(0) - int_lambda.sum(0))).sum(0)
 
-        return nll.sum()
+            # if ll_lower_bound > 0:
+            #     print(n, ll_lower_bound, (torch.log(lamda).sum(0), int_lambda.sum(0)))
+            nll -= ll_lower_bound
+
+        return nll
 
     def _get_g(self, n):
         t = self.hp.seqs[n][:, 0]
@@ -205,7 +210,7 @@ class EM_clustering:
             tau = torch.tril(t.unsqueeze(1).repeat(1, t.shape[0]) - t[None, :], diagonal=-1)
             assert (tau >= 0).all()
             g = torch.stack([f(tau) for f in self.hp.basis_fs], dim=-1)
-            g[tau < 0] = 0
+            g = g * (tau > 0)[:, :, None]
             self.g.append(g)
         else:
             g = self.g[n]
@@ -223,18 +228,11 @@ class EM_clustering:
         
         return int_g
 
-    def integral_lambda(self, t, c, Tn, k, mu, A, g=None, npts=1000):
-        ts = torch.linspace(0, Tn, npts)
-        tau = ts.unsqueeze(1).repeat(1, t.shape[0]) - t[None, :]
-        if g is None:
-            g = torch.stack([f(tau) for f in self.hp.basis_fs], dim=-1) # T x L x D
-            g[tau < 0] = 0
+    # def integral_lambda(self, t, c, Tn, mu, A, int_g, npts=1000):
+    #     A_g = (A[:, c.tolist(), :, :] * int_g[None, :, :, None]).sum(2).sum(1) # C x K
+    #     int_lambda = Tn * mu + A_g
 
-        A_g = (A[:, None, c.tolist(), :, k] * g[None, :, :, :]).sum(-1) # C x T x L
-        lamda = mu[:, k, None] + A_g.sum(-1) # C x T
-        int_lambda = lamda.sum(-1) * (ts[1] - ts[0])
-
-        return int_lambda, g
+    #     return int_lambda
 
     def e_step(self):
         log_rho = torch.zeros(self.N, self.K)
@@ -247,7 +245,7 @@ class EM_clustering:
 
         for n, (c, t, Tn) in enumerate(self.hp):
             g = self._get_g(n)
-            e_A_g = torch.tril((e_A[c.tolist(), c.tolist(), :, :] * g[:, :, :, None]).sum(2).permute(2, 0, 1), diagonal=-1) # K x L x L
+            e_A_g = (e_A[c.tolist(), c.tolist(), :, :] * g[:, :, :, None]).sum(2).permute(2, 0, 1) # K x L x L
             e_lambda = e_mu[c.tolist(), :].permute(1, 0) + e_A_g.sum(-1)
             var_lambda = var_mu[c.tolist(), :].permute(1, 0) + ((e_A_g)**2).sum(1)
             log_rho[n, :] += (torch.log(e_lambda) - var_lambda / (2*e_lambda**2)).sum(1)
@@ -257,8 +255,9 @@ class EM_clustering:
             log_rho[n, :] -= int_lambda
 
         rho = F.softmax(log_rho, -1)
-
         r = rho / rho.sum(1)[:, None]
+        assert torch.isclose(r.sum(1), torch.ones_like(r.sum(1))).all(), r.sum(1)
+
         return r
 
     def m_step(self, r, niter=8):
@@ -269,21 +268,22 @@ class EM_clustering:
         C = mu.shape[0]
         
         for _ in range(niter):
-            b = 0
-            c = -1
+            b = torch.zeros(self.K)
+            c = -1 * torch.ones(self.C, self.K)
             s = 0
             d = 0
             for n, (cs, _, Tn) in enumerate(self.hp):
                 b += r[n] * Tn # K 
 
                 g = self._get_g(n)
-                A_g = torch.tril((A[cs.tolist(), cs.tolist(), :, :] * g[:, :, :, None]).sum(2).permute(2, 0, 1), diagonal=-1).permute(1,2,0) # L x L x K
+                A_g = (A[cs.tolist(), cs.tolist(), :, :] * g[:, :, :, None]).sum(2) # L x L x K
                 lamda = mu[cs.tolist(), :] + A_g.sum(1) 
                 pii = mu[cs.tolist(), :] / lamda # L x K
                 
-                A_g_ = torch.tril((A[cs.tolist(), cs.tolist(), :, :] * g[:, :, :, None]).permute(2,3,0,1), diagonal=-1).permute(2,3,0,1) # L x L x D x K
+                #A_g_ = torch.tril((A[cs.tolist(), cs.tolist(), :, :] * g[:, :, :, None]).permute(2,3,0,1), diagonal=-1).permute(2,3,0,1) # L x L x D x K
+                A_g_ = (A[cs.tolist(), cs.tolist(), :, :] * g[:, :, :, None]) # L x L x D x K
                 pijd = A_g_ / lamda[:, None, None, :] # L x L x D x K
-                assert (pijd <= 1).all(), pijd[:, :, 0, 0]
+                assert (pijd <= 1).all(), (pijd.max(), lamda.min(), mu.min())
                 
                 x = cs.unsqueeze(0).repeat(C, 1)
                 eq = x == torch.tensor(np.arange(C)).unsqueeze(1).repeat(1, cs.shape[0]) # C x L 
@@ -302,9 +302,10 @@ class EM_clustering:
                 d += r[n][None, None, :] * sum_int[:, :, None] # C D K
 
             a = 1 / beta**2 # C x K 
-            mu = (-b[None, :] + (b[None, :]**2 - 4*a*c)**.5)/ (2*a)
+            mu = 0.001 + (-b[None, :] + (b[None, :]**2 - 4*a*c)**.5)/ (2*a)
             A = s / (Sigma**(-1) + d[None, :, :, :])
             assert (A >= 0).all()
+            assert (mu > 0).all()
 
         return mu, A
 
