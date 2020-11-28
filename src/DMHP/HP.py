@@ -12,7 +12,7 @@ from torch.nn import functional as F
 def integral(f, left, right, npts=10000):
     grid = torch.FloatTensor(np.linspace(left.tolist(), right.tolist(), npts))
     out = f(grid)
-    int_f = out.sum(0) * (grid[1, :] - grid[0, :])
+    int_f = (out[0, :] / 2. + out[-1, :] / 2. + out[1:-1, :]).sum(0) * (grid[1, :] - grid[0, :])
     return int_f    
 
 
@@ -197,9 +197,8 @@ class EM_clustering:
             #integral = self.integral_lambda(t, c, Tn, mu, A, int_g=self._get_int_g(n))
 
             ll_lower_bound = (pi * (torch.log(lamda).sum(0) - int_lambda.sum(0))).sum(0)
+            #assert (ll_lower_bound < 1).all(), ll_lower_bound
 
-            # if ll_lower_bound > 0:
-            #     print(n, ll_lower_bound, (torch.log(lamda).sum(0), int_lambda.sum(0)))
             nll -= ll_lower_bound
 
         return nll
@@ -228,12 +227,6 @@ class EM_clustering:
         
         return int_g
 
-    # def integral_lambda(self, t, c, Tn, mu, A, int_g, npts=1000):
-    #     A_g = (A[:, c.tolist(), :, :] * int_g[None, :, :, None]).sum(2).sum(1) # C x K
-    #     int_lambda = Tn * mu + A_g
-
-    #     return int_lambda
-
     def e_step(self):
         log_rho = torch.zeros(self.N, self.K)
         elogpi = self.model.e_logpi()
@@ -261,9 +254,9 @@ class EM_clustering:
         return r
 
     def m_step(self, r, niter=8):
-        mu = self.model.mu
+        mu = (np.pi / 2)**.5 * self.model.B
         beta = self.model.B
-        A = self.model.A
+        A = self.model.Sigma
         Sigma = self.model.Sigma
         C = mu.shape[0]
         
@@ -276,13 +269,12 @@ class EM_clustering:
                 b += r[n] * Tn # K 
 
                 g = self._get_g(n)
-                A_g = (A[cs.tolist(), cs.tolist(), :, :] * g[:, :, :, None]).sum(2) # L x L x K
-                lamda = mu[cs.tolist(), :] + A_g.sum(1) 
+                A_g = (A[cs.tolist(), cs.tolist(), :, :] * g[:, :, :, None])#.sum(2) # L x L x D x K
+                lamda = mu[cs.tolist(), :] + A_g.sum(2).sum(1) 
                 pii = mu[cs.tolist(), :] / lamda # L x K
                 
-                #A_g_ = torch.tril((A[cs.tolist(), cs.tolist(), :, :] * g[:, :, :, None]).permute(2,3,0,1), diagonal=-1).permute(2,3,0,1) # L x L x D x K
-                A_g_ = (A[cs.tolist(), cs.tolist(), :, :] * g[:, :, :, None]) # L x L x D x K
-                pijd = A_g_ / lamda[:, None, None, :] # L x L x D x K
+                #A_g_ = (A[cs.tolist(), cs.tolist(), :, :] * g[:, :, :, None]) # L x L x D x K
+                pijd = A_g / lamda[:, None, None, :] # L x L x D x K
                 assert (pijd <= 1).all(), (pijd.max(), lamda.min(), mu.min())
                 
                 x = cs.unsqueeze(0).repeat(C, 1)

@@ -14,15 +14,16 @@ def consistency(trials_labels):
             sz_M = 0
             for k in ks:
                 mask = labels == k
-                s = mask.sum() * (mask.sum() - 1.) / 2.
+                sz = mask.sum()
+                s = sz * (sz - 1.) / 2.
                 sz_M += s
 
             for k in ks:
                 mask = labels == k
                 s2 = 0
                 for k2 in labels2[mask].unique():
-                    sz_ = (labels2[mask] == k2).sum()
-                    s2 += sz_ * (sz_ - 1.) / 2.
+                    sz = (labels2[mask] == k2).sum()
+                    s2 += sz * (sz - 1.) / 2.
                 values[trial_id] += (s - s2) / ((J-1) * sz_M)
     
     return torch.min(values)
