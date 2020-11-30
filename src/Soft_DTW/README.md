@@ -4,9 +4,7 @@ The choice of the distance metric for time series of variable sizes is an import
 
 The Dynamic Time Warping approach seeks a minimum-cost alignment in the distance matrix under the constraints between two time series.  It can be computed by dynamic programming in quadratic time.  However, DTW is not differentiable, is sensitive to noise, and is known to lead to bad local optima when used as a loss.
 
-\begin{equation}
-    \text{DTW(x, y)} := \smash{\displaystyle\min_{A \in A (n, m)}} [A, \Delta \text(x, y)]
-\end{equation}
+$$\text{DTW(x, y)} := \smash{\displaystyle\min_{A \in A (n, m)}} [A, \Delta \text(x, y)]$$
 
 Soft-DTW, proposed by M. Cuturi and M. Blondel in 2018, is a smoothed formulation of DTW. It addresses these issues of DTW. It replaces the minimum over alignments with a soft minimum, which has the effect of inducing a probability distribution over all alignments. Soft-DTW can still be computed by dynamic programming in the same complexity.
 
