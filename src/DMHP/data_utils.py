@@ -4,20 +4,21 @@ import numpy as np
 import torch
 
 
-def load_data(path, maxlen=-1):
+def load_data(path, nfiles, maxlen=-1, endtime=None, datetime=False, type='csv'):
     s = []
     classes = set()
-    for i in range(1, 300):
-        path_ = Path(path, f'{i}.txt')
+    for i in range(1, nfiles + 1):
+        path_ = Path(path, f'{i}.{type}')
         with path_.open('r') as f:
             df = pd.read_csv(f)
         classes = classes.union(set(df['event'].unique()))
-        df['time'] = pd.to_datetime(df['time'])
-        df['time'] = (df['time'] - df['time'][0]) / np.timedelta64(1,'D')
+        if datetime:
+            df['time'] = pd.to_datetime(df['time'])
+            df['time'] = (df['time'] - df['time'][0]) / np.timedelta64(1,'D')
         if maxlen > 0:
             df = df.iloc[:maxlen]
-        df = df.drop(['id', 'option1'], axis=1)
-        s.append(df)
+        #df = df.drop(['id', 'option1'], axis=1)
+        s.append(df[['time', 'event']])
 
     classes = list(classes)
     class2idx = {clas: idx for idx, clas in enumerate(classes)}
@@ -31,7 +32,10 @@ def load_data(path, maxlen=-1):
         if maxlen > 0:
             tens = tens[:maxlen]
         ss.append(tens)
-        Ts.append(tens[-1, 0] + 1)
+        if endtime is not None:
+            Ts.append(endtime)
+        else:
+            Ts.append(tens[-1, 0] * 1.01)
 
     Ts = torch.FloatTensor(Ts)
 

@@ -29,3 +29,15 @@ def consistency(trials_labels):
     return torch.min(values)
 
 
+def purity(learned_ids, gt_ids):
+    assert len(learned_ids) == len(gt_ids)
+    pur = 0
+    ks = torch.unique(learned_ids)
+    js = torch.unique(gt_ids)
+    for k in ks:
+        inters = []
+        for j in js:
+            inters.append(((learned_ids == k) * (gt_ids == j)).sum().item())
+        pur += 1./len(learned_ids) * max(inters)
+
+    return pur
