@@ -91,7 +91,7 @@ if __name__ == '__main__':
                 args.n_decays, args.n_realiz_per_cluster, args.end_time, args.dt)
     dfs, cluster_ids = convert_clusters_to_dfs(clusters)
     print('Saving...')
-    save_dir = Path(args.save_dir)
+    save_dir = Path(Path(__file__).parent.absolute(), 'simulated_Hawkes', args.save_dir)
     save_dir.mkdir(exist_ok=True, parents=True)
     for i, df in enumerate(dfs):
         df.to_csv(Path(save_dir, f'{i+1}.csv').open('w'))

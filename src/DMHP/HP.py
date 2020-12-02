@@ -1,12 +1,20 @@
-# This file contains PyTorch implementation of methods from A Dirichlet Mixture Model 
-# of Hawkes Processes for Event Sequence Clustering
-# https://arxiv.org/pdf/1701.09177.pdf
+"""
+This file contains PyTorch implementation of methods from A Dirichlet Mixture Model 
+of Hawkes Processes for Event Sequence Clustering
+https://arxiv.org/pdf/1701.09177.pdf
+"""
 
 import torch
 import numpy as np
 from tqdm import tqdm, trange
 from typing import List
 from torch.nn import functional as F
+import random
+
+
+def tune_basis_fn():
+    # TBD
+    return NotImplementedError
 
 
 def integral(f, left, right, npts=10000):
@@ -68,17 +76,26 @@ class DirichletMixtureModel:
         self.exp = torch.distributions.exponential.Exponential((Sigma)**(-1))
         self.A = self.exp.sample() # C x C x D x K
 
-    def p_mu(self, mu=None):
+    def p_mu(self, mu=None, B=None):
         mu = mu if mu is not None else self.mu
-        return torch.exp(self.rayleigh.log_prob(mu))
+        if B is not None:
+            return torch.prod(torch.exp(torch.distributions.Weibull(2**0.5 * B, 2 * torch.ones_like(B)).log_prob(mu)))
+        else:
+            return torch.prod(torch.exp(self.rayleigh.log_prob(mu)))
 
-    def p_A(self, A=None):
+    def p_A(self, A=None, Sigma=None):
         A = A if A is not None else self.A
-        return torch.exp(self.exp.log_prob(A))
+        if Sigma is not None:
+            return torch.prod(torch.exp(torch.distributions.Exponential((Sigma)**(-1)).log_prob(A)))
+        else:
+            return torch.prod(torch.exp(self.exp.log_prob(A)))
 
-    def p_pi(self, pi=None):
+    def p_pi(self, pi=None, K=None):
         pi = pi if pi is not None else self.pi
-        return torch.exp(self.dirich.log_prob(pi))
+        if K is not None:
+            concentration = torch.FloatTensor([self.alpha /  float(K) for _ in range(K)])
+            return torch.prod(torch.exp(torch.distributions.Dirichlet(concentration).log_prob(pi)))
+        return torch.prod(torch.exp(self.dirich.log_prob(pi)))
 
     def e_logpi(self):
         """
@@ -122,6 +139,10 @@ class DirichletMixtureModel:
 
     def update_pi(self, pi):
         self.pi = pi
+        self.K = pi.shape[0]
+        concentration = torch.FloatTensor([self.alpha /  float(self.K) for _ in range(self.K)])
+        self.dirich = torch.distributions.Dirichlet(concentration)
+
 
 
 class EM_clustering:
@@ -161,26 +182,38 @@ class EM_clustering:
             nll2 = self.hp_nll(r2.sum(0) / self.N, mu2, A2)
 
             if nll1 < nll2:
-                nll_history.append(nll1.item())
-                self.update_model(r, mu, A)
+                pi = r.sum(0) / self.N
+                self.update_model(pi, mu, A)
             else:
-                nll_history.append(nll2.item())
                 r = r2
-                self.update_model(r, mu2, A2)
+                nll1 = nll2
+                pi = r.sum(0) / self.N
+                self.update_model(pi, mu2, A2)
+            nll_history.append(nll1.item())
+            print(f'\nNLL / N: {(nll1.item() / self.N):.4f}')
+
+            # K = self.K
+            # print('\n', self.K)
+            # self.update_num_clusters(nll1)
+            # print('\n', self.K)
+            # if self.K != K:
+            #     r = self.e_step()
 
         return r, nll_history
 
-    def update_model(self, r, mu, A):
+    def update_model(self, pi, mu, A):
         Sigma = A
         B = (2 / np.pi)**.5 * mu
         self.model.update_A(A, Sigma)
         self.model.update_mu(mu, B)
-        pi = r.sum(0) / self.N
         self.model.update_pi(pi)
+        self.model.K = pi.shape[0]
 
     def hp_nll(self, pi, mu, A):
         """
-        Computes negative log-likelihood given \pi, \mu, A up to a constant (!)
+        Computes negative log-likelihood given \pi, \mu, A
+
+        Need doublechecking
         """
         assert torch.isclose(pi.sum(0), torch.ones_like(pi.sum(0))), pi
         nll = 0
@@ -198,7 +231,6 @@ class EM_clustering:
 
             ll_lower_bound = (pi * (torch.log(lamda).sum(0) - int_lambda.sum(0))).sum(0)
             #assert (ll_lower_bound < 1).all(), ll_lower_bound
-
             nll -= ll_lower_bound
 
         return nll
@@ -269,7 +301,7 @@ class EM_clustering:
                 b += r[n] * Tn # K 
 
                 g = self._get_g(n)
-                A_g = (A[cs.tolist(), cs.tolist(), :, :] * g[:, :, :, None])#.sum(2) # L x L x D x K
+                A_g = (A[cs.tolist(), cs.tolist(), :, :] * g[:, :, :, None]) # L x L x D x K
                 lamda = mu[cs.tolist(), :] + A_g.sum(2).sum(1) 
                 pii = mu[cs.tolist(), :] / lamda # L x K
                 
@@ -294,12 +326,76 @@ class EM_clustering:
                 d += r[n][None, None, :] * sum_int[:, :, None] # C D K
 
             a = 1 / beta**2 # C x K 
-            mu = 0.001 + (-b[None, :] + (b[None, :]**2 - 4*a*c)**.5)/ (2*a)
+            mu = 1e-5 + (-b[None, :] + (b[None, :]**2 - 4*a*c)**.5)/ (2*a)
             A = s / (Sigma**(-1) + d[None, :, :, :])
             assert (A >= 0).all()
             assert (mu > 0).all()
 
         return mu, A
+
+    def update_num_clusters(self, nll):
+        """
+        Need doublechecking
+        """
+        for _ in range(10):
+            if self.K == 1:
+                qs = 1.
+            else:
+                qs = .5
+
+            old_A = self.model.A
+            old_mu = self.model.mu
+            old_pi = self.model.pi
+            # old_Sigma = self.model.Sigma
+            # old_B = self.model.B
+            old_K = self.K
+
+            split = (random.random() < qs)
+            if split: # perform split of cluster
+                k = random.randint(0, old_K-1)
+                a = torch.distributions.Beta(1, 1).sample()
+                pi1 = a * old_pi[k:k+1]
+                pi2 = (1 - a) * old_pi[k:k+1]
+                pi = torch.cat([old_pi[:k], old_pi[k+1:], pi1, pi2], 0)
+                assert pi.shape[0] == old_K+1, (old_pi.shape[0], pi.shape, old_K+1)
+
+                A1 = 1. / (2 * a) * old_A[..., k:k+1]
+                A2 = 1. / (2 * (1 - a)) * old_A[..., k:k+1]
+
+                mu1 = 1. / (2 * a) * old_mu[..., k:k+1]
+                mu2 = 1. / (2 * (1 - a)) * old_mu[..., k:k+1]
+
+                A = torch.cat([old_A[..., :k], old_A[..., k+1:], A1, A2], -1)
+                mu = torch.cat([old_mu[..., :k], old_mu[..., k+1:], mu1, mu2], -1)
+
+                K = old_K + 1
+
+            else: # perform merge of clusters
+                (k1, k2) = np.sort(np.random.choice(np.arange(old_K), 2, replace=False))
+                pi = torch.cat([old_pi[:k2], old_pi[k2+1:]], 0)
+                pi[k1] = old_pi[k1] + old_pi[k2]
+
+                A = torch.cat([old_A[..., :k2], old_A[..., k2+1:]], -1)
+                A[..., k1] = old_pi[k1] / pi[k1] * old_A[..., k1] + old_pi[k2] / pi[k1] * old_A[..., k2]
+
+                mu = torch.cat([old_mu[..., :k2], old_mu[..., k2+1:]], -1)
+                mu[..., k1] = old_pi[k1] / pi[k1] * old_mu[..., k1] + old_pi[k2] / pi[k1] * old_mu[..., k2]
+
+                K = old_K - 1
+
+            Sigma = A
+            B = (2 / np.pi)**.5 * mu
+
+            new_nll = self.hp_nll(pi, mu, A)
+            p = (torch.exp((nll - new_nll)/self.N)).item() #* \
+                    #self.model.p_A(A, Sigma) * self.model.p_mu(mu, B) * self.model.p_pi(pi, K) / \
+                    #(self.model.p_A() * self.model.p_mu() * self.model.p_pi() + 1e-5)).item()
+            print(nll, new_nll, p, old_K, K)
+            p = min(1, p)
+            if random.random() < p:
+                self.update_model(pi, mu, A)
+                self.K = K
+                nll = new_nll
 
 
 # class HawkesProcess:
