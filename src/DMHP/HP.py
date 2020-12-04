@@ -144,7 +144,6 @@ class DirichletMixtureModel:
         self.dirich = torch.distributions.Dirichlet(concentration)
 
 
-
 class EM_clustering:
     """
     Class for learning parameters of Hawkes Processes' clusters
@@ -156,7 +155,7 @@ class EM_clustering:
     """
     def __init__(self, hp : PointProcessStorage, 
                     model : DirichletMixtureModel,
-                    n_inner : int = 10):
+                    n_inner : int = 5):
         self.N = hp.N
         self.K = model.K
         self.C = model.mu.shape[0]
@@ -169,19 +168,28 @@ class EM_clustering:
 
         self.gg = []
 
-    def learn_hp(self, niter=100):
+    def learn_hp(self, niter=100, ninner=None):
+        ninner = ninner if ninner is not None else self.n_inner
+        if isinstance(ninner, int):
+            ninner = [ninner]*niter
+        assert len(ninner) == niter
+
         nll_history = []
+        r_history = torch.empty(niter, self.N, self.K)
         r = torch.rand(self.N, self.K)
         r = r / r.sum(1)[:, None]
-        for _ in trange(niter):
-            mu, A = self.m_step(r, self.n_inner)
-            nll1 = self.hp_nll(r.sum(0) / self.N, mu, A)
+        for i, nin in tqdm(enumerate(ninner)):
+            # commented so far
+            # mu, A = self.m_step(r, nin)
+            # nll1 = self.hp_nll(r.sum(0) / self.N, mu, A)
 
             r2 = self.e_step()
-            mu2, A2 = self.m_step(r2, self.n_inner)
+            mu2, A2 = self.m_step(r2, nin)
             nll2 = self.hp_nll(r2.sum(0) / self.N, mu2, A2)
 
-            if nll1 < nll2:
+            # commented so far
+            #if nll1 < nll2:
+            if False:
                 pi = r.sum(0) / self.N
                 self.update_model(pi, mu, A)
             else:
@@ -189,9 +197,11 @@ class EM_clustering:
                 nll1 = nll2
                 pi = r.sum(0) / self.N
                 self.update_model(pi, mu2, A2)
+            r_history[i] = r
             nll_history.append(nll1.item())
             print(f'\nNLL / N: {(nll1.item() / self.N):.4f}')
 
+            # commented so far
             # K = self.K
             # print('\n', self.K)
             # self.update_num_clusters(nll1)
@@ -199,7 +209,7 @@ class EM_clustering:
             # if self.K != K:
             #     r = self.e_step()
 
-        return r, nll_history
+        return r, nll_history, r_history
 
     def update_model(self, pi, mu, A):
         Sigma = A
@@ -211,7 +221,7 @@ class EM_clustering:
 
     def hp_nll(self, pi, mu, A):
         """
-        Computes negative log-likelihood given \pi, \mu, A
+        Computes negative log-likelihood lower bound (via Jensen inequality) given \pi, \mu, A
 
         Need doublechecking
         """
@@ -222,7 +232,6 @@ class EM_clustering:
             g = self._get_g(n)
             A_g = (A[c.tolist(), c.tolist(), :, :] * g[:, :, :, None]).sum(2) # L x L x K
             lamda = mu[c.tolist(), :] + A_g.sum(1)
-            assert (lamda > 0).all()
 
             int_g = self._get_int_g(n)
             A_g = (A[:, c.tolist(), :, :] * int_g[None, :, :, None]).sum(2)# C x K
@@ -230,7 +239,7 @@ class EM_clustering:
             #integral = self.integral_lambda(t, c, Tn, mu, A, int_g=self._get_int_g(n))
 
             ll_lower_bound = (pi * (torch.log(lamda).sum(0) - int_lambda.sum(0))).sum(0)
-            #assert (ll_lower_bound < 1).all(), ll_lower_bound
+            #assert (ll_lower_bound < 0).all(), ll_lower_bound
             nll -= ll_lower_bound
 
         return nll
@@ -268,7 +277,7 @@ class EM_clustering:
         e_A = self.model.e_A() # C x C x D x K
         var_mu = self.model.var_mu()
 
-        for n, (c, t, Tn) in enumerate(self.hp):
+        for n, (c, _, Tn) in enumerate(self.hp):
             g = self._get_g(n)
             e_A_g = (e_A[c.tolist(), c.tolist(), :, :] * g[:, :, :, None]).sum(2).permute(2, 0, 1) # K x L x L
             e_lambda = e_mu[c.tolist(), :].permute(1, 0) + e_A_g.sum(-1)
@@ -326,7 +335,7 @@ class EM_clustering:
                 d += r[n][None, None, :] * sum_int[:, :, None] # C D K
 
             a = 1 / beta**2 # C x K 
-            mu = 1e-5 + (-b[None, :] + (b[None, :]**2 - 4*a*c)**.5)/ (2*a)
+            mu = 1e-7 + (-b[None, :] + (b[None, :]**2 - 4*a*c)**.5)/ (2*a)
             A = s / (Sigma**(-1) + d[None, :, :, :])
             assert (A >= 0).all()
             assert (mu > 0).all()
@@ -346,8 +355,6 @@ class EM_clustering:
             old_A = self.model.A
             old_mu = self.model.mu
             old_pi = self.model.pi
-            # old_Sigma = self.model.Sigma
-            # old_B = self.model.B
             old_K = self.K
 
             split = (random.random() < qs)

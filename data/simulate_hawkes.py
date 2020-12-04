@@ -1,5 +1,7 @@
 import torch
 import numpy as np
+import scipy as sp
+import scipy.sparse as spsp
 import pandas as pd
 import matplotlib.pyplot as plt
 from pathlib import Path
@@ -19,22 +21,31 @@ def parse_arguments():
     parser.add_argument('--dt', type=float, default=0.01)
     parser.add_argument('--max_jumps', type=int, default=1000)
     parser.add_argument('--save_dir', type=str, required=True)
+    parser.add_argument('--seed', type=int)
+    
     args = parser.parse_args()
 
     return args
 
 
-def simulate_hawkes(n_nodes, n_decays, n_realiz, end_time, dt, max_jumps=1000):
+def random_seed(seed):
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    
+
+def simulate_hawkes(n_nodes, n_decays, n_realiz, end_time, dt, max_jumps=1000, seed=None):
     tss = []
 
     baselines = np.random.rand(n_nodes) / n_nodes
-    decays = np.random.rand(n_decays)
-    adjacency = np.random.rand(n_nodes, n_nodes, n_decays)
+    #baselines = spsp.rand(1, n_nodes, density=0.5).toarray()[0] / n_nodes
+    decays = 5 * np.random.rand(n_nodes, n_nodes)
+    adjacency = spsp.rand(n_nodes, n_nodes, density=0.25).toarray()
     # Simulation
 
-    for _ in range(n_realiz):
-        hawkes = SimuHawkesSumExpKernels(
-        baseline=baselines, decays=decays, adjacency=adjacency)
+    for i in range(n_realiz):
+        seed_ = seed + i if seed is not None else None
+        hawkes = SimuHawkesExpKernels(
+            baseline=baselines, decays=decays, adjacency=adjacency, seed=seed_)
         hawkes.adjust_spectral_radius(0.8)
         hawkes.max_jumps = max_jumps
 
@@ -48,10 +59,11 @@ def simulate_hawkes(n_nodes, n_decays, n_realiz, end_time, dt, max_jumps=1000):
     return tss 
 
 
-def simulate_clusters(n_clusters, n_nodes, n_decays, n_realiz, end_time, dt):
+def simulate_clusters(n_clusters, n_nodes, n_decays, n_realiz, end_time, dt, max_jumps, seed=None):
     clusters = []
-    for _ in range(n_clusters):
-        clusters.append(simulate_hawkes(n_nodes, n_decays, n_realiz, end_time, dt))
+    for i in range(n_clusters):
+        seed_ = seed + i if seed is not None else None
+        clusters.append(simulate_hawkes(n_nodes, n_decays, n_realiz, end_time, dt, max_jumps, seed_))
     
     return clusters
 
@@ -86,9 +98,11 @@ def convert_clusters_to_dfs(clusters):
 
 if __name__ == '__main__':
     args = parse_arguments()
+    if args.seed is not None:
+        random_seed(args.seed)
     print('Simulating...')
     clusters = simulate_clusters(args.n_clusters, args.n_nodes, 
-                args.n_decays, args.n_realiz_per_cluster, args.end_time, args.dt)
+                args.n_decays, args.n_realiz_per_cluster, args.end_time, args.dt, args.max_jumps, args.seed)
     dfs, cluster_ids = convert_clusters_to_dfs(clusters)
     print('Saving...')
     save_dir = Path(Path(__file__).parent.absolute(), 'simulated_Hawkes', args.save_dir)
