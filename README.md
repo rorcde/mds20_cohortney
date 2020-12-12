@@ -29,7 +29,7 @@ in root dir:
 ```bat
 python -m venv cohortney
 
-. cohohortney/bin/activate
+. cohortney/bin/activate
 
 cd mds20_cohortney
 
