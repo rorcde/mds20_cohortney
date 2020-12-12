@@ -26,7 +26,7 @@ in root dir:
 
 python -m venv cohortney
 
-. cohohortney/bin/activate
+. cohortney/bin/activate
 
 cd mds20_cohortney
 
