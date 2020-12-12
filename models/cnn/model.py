@@ -4,10 +4,11 @@ from torch.nn import functional as F
 
 
 class SeqCNN(nn.Module):
-    def __init__(self, input_size):
+    def __init__(self, input_size, in_channels):
         super().__init__()
         self.input_size = input_size
-        self.encoder = Encoder(input_size)
+        self.in_channels = in_channels
+        self.encoder = Encoder(in_channels)
         self.fd = self.get_feature_dim()
         self.classifier = nn.Sequential(
             nn.Linear(self.fd, self.fd),
@@ -30,11 +31,11 @@ class SeqCNN(nn.Module):
 
 
 class Encoder(nn.Module):
-    def __init__(self, input_size):
+    def __init__(self, in_channels):
         super().__init__()
-        self.input_size = input_size
+        self.in_channels = in_channels
         self.encoder_conv = nn.Sequential(
-                nn.Conv1d(in_channels=1, out_channels=512, kernel_size = 3, stride = 2, padding = 1),
+                nn.Conv1d(in_channels=in_channels, out_channels=512, kernel_size = 3, stride = 2, padding = 1),
                 # nn.Linear(),
                 # nn.ReLU(),
                 nn.BatchNorm1d(512),

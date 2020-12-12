@@ -11,7 +11,7 @@ def fws(p, t1, t2):
 def fws_array(p, array):
     fws_array = ''
     for i in range(1, len(array)):
-        fws_array +=str(fws(p, array[i-1], array[i]))
+        fws_array += str(fws(p, array[i-1], array[i]))
     # fws_array = tuple(fws_array)
     return fws_array
 

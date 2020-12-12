@@ -13,7 +13,7 @@ def load_data(data_dir, maxsize=None, maxlen=-1, ext='txt', datetime=True):
     nb_files = 0
     for file in os.listdir(data_dir):
         if file.endswith(f'.{ext}') and re.sub(fr'.{ext}', '', file).isnumeric():
-            if maxsize is None or nb_files < maxsize:
+            if maxsize is None or nb_files <= maxsize:
                 nb_files += 1
             else:
                 break

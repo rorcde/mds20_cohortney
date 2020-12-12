@@ -181,6 +181,6 @@ class Kmeans(object):
         if verbose:
             print('k-means time: {0:.0f} s'.format(time.time() - end))
 
-        return loss
+        return loss, I
 
 

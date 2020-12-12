@@ -8,16 +8,19 @@ import time
 from sklearn.metrics.cluster import normalized_mutual_info_score
 from pathlib import Path
 import itertools
+import pandas as pd
 
 from models.cnn.model import SeqCNN
 import clustering
 from src.Cohortney.data_utils import load_data, sep_hawkes_proc
 from src.Cohortney.utils import *
+from src.DMHP.metrics import purity, consistency
 
 
 def random_seed(seed):
     torch.manual_seed(seed)
-    torch.cuda.manual_seed_all(args.seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(args.seed)
     np.random.seed(args.seed)
 
 
@@ -26,7 +29,7 @@ def parse_arguments():
     parser.add_argument('--data_dir', type=str, required=True)
     parser.add_argument('--maxsize', type=int, default=None)
     parser.add_argument('--nmb_cluster', type=int, default=10)
-    parser.add_argument('--maxlen', type=int, default=2000)
+    parser.add_argument('--maxlen', type=int, default=3000)
     parser.add_argument('--ext', type=str, default='txt')
     parser.add_argument('--not_datetime', action='store_true')
     parser.add_argument('--gamma', type=float, default=1.4)
@@ -44,6 +47,7 @@ def parse_arguments():
     parser.add_argument('--workers', type=int, default=4)
     parser.add_argument('--device', type=str, default='cpu')
     parser.add_argument('--verbose', action='store_true')
+    parser.add_argument('--nruns', type=int, default=1)
     args = parser.parse_args()
     return args
 
@@ -54,6 +58,7 @@ def main(args):
     
     #weird
     events = itertools.chain.from_iterable([sep_hawkes_proc(user_list, i) for i in range(len(class2idx))])
+    #events = list(itertools.chain.from_iterable(zip(*[sep_hawkes_proc(user_list, i) for i in range(len(class2idx))])))
     grid = make_grid(args.gamma, args.Tb, args.Th, args.N, args.n)
 
     T_j = grid[-1]
@@ -64,108 +69,128 @@ def main(args):
     array, _ = arr_func(events, T_j, Delta_T)
 
     #dataset = Dataset(array)
-    dataset = [torch.FloatTensor(x) for x in array]
+    dataset = torch.FloatTensor(array) #.reshape(len(ss), len(class2idx), -1)  # for x in array]
     if args.verbose:
         print('Loaded data')
-
     input_size = dataset[0].shape[0]
 
-    model = SeqCNN(input_size)
-    model.top_layer = None
-    model.to(device)
-    fd = model.fd
-    
-    # optimizer = SGD(
-    #     filter(lambda x: x.requires_grad, model.parameters()),
-    #     lr=args.lr,
-    #     momentum=args.momentum,
-    #     weight_decay=args.wd,
-    # )
-
-    optimizer = Adam(
-        filter(lambda x: x.requires_grad, model.parameters()),
-        lr=args.lr,
-        weight_decay=args.wd,
-    )
-
-    criterion = nn.CrossEntropyLoss()
-
-    dataloader = torch.utils.data.DataLoader(dataset, 
-                                             #collate_fn=pad_collate1,
-                                             batch_size=args.batch,
-                                             num_workers=args.workers,
-                                             pin_memory=True)
-
-    deepcluster = clustering.Kmeans(args.nmb_cluster)
-
-    for epoch in range(args.start_epoch, args.epochs):
-        end = time.time()
-
-        # remove head
+    assigned_labels = []
+    for run_id in range(args.nruns):
+        print(f'============= RUN {run_id} ===============')
+        model = SeqCNN(input_size, 1) #len(class2idx))
         model.top_layer = None
-        #model.classifier = nn.Sequential(*list(model.classifier.children())[:-1])
-
-        # get the features for the whole dataset
-        features = compute_features(dataloader, model, len(dataset), device)
-
-        # cluster the features
-        if args.verbose:
-            print('Cluster the features')
-        clustering_loss = deepcluster.cluster(features, verbose=args.verbose)
-
-        # assign pseudo-labels
-        if args.verbose:
-            print('Assign pseudo labels')
-        train_dataset = clustering.cluster_assign(deepcluster.lists,
-                                                  dataset)
-
-        # uniformly sample per target
-        # sampler = UnifLabelSampler(int(args.reassign * len(train_dataset)),
-        #                            deepcluster.lists)
-
-        train_dataloader = torch.utils.data.DataLoader(
-            train_dataset,
-        #    collate_fn=pad_collate2,
-            batch_size=args.batch,
-            num_workers=args.workers,
-        #    sampler=sampler,
-            pin_memory=True,
+        model.to(device)
+        fd = model.fd
+        
+        # optimizer = SGD(
+        #     filter(lambda x: x.requires_grad, model.parameters()),
+        #     lr=args.lr,
+        #     momentum=args.momentum,
+        #     weight_decay=args.wd,
+        # )
+        optimizer = Adam(
+            filter(lambda x: x.requires_grad, model.parameters()),
+            lr=args.lr,
+            weight_decay=args.wd,
         )
+        criterion = nn.CrossEntropyLoss()
 
-        # set last fully connected layer
-        # mlp = list(model.classifier.children())
-        # mlp.append(nn.ReLU(inplace=True).to(device))
-        # model.classifier = nn.Sequential(*mlp)
-        model.top_layer = nn.Linear(fd, len(deepcluster.lists))
-        model.top_layer.weight.data.normal_(0, 0.01)
-        model.top_layer.bias.data.zero_()
-        model.top_layer.to(device)
+        dataloader = torch.utils.data.DataLoader(dataset, 
+                                                #collate_fn=pad_collate1,
+                                                batch_size=args.batch,
+                                                num_workers=args.workers,
+                                                pin_memory=True)
 
-        # train network with clusters as pseudo-labels
-        end = time.time()
-        loss = train(train_dataloader, model, criterion, optimizer, epoch, device)
+        deepcluster = clustering.Kmeans(args.nmb_cluster)
+        cluster_log = []
 
-        # print log
-        if args.verbose:
-            print(f'###### Epoch {epoch} ###### \n Time: {(time.time() - end):.3f} s\n Clustering loss: {clustering_loss:.3f} \n ConvNet loss: {loss:.3f}')
-            # try:
-            #     nmi = normalized_mutual_info_score(
-            #         clustering.arrange_clustering(deepcluster.lists),
-            #         clustering.arrange_clustering(cluster_log.data[-1])
-            #     )
-            #     print('NMI against previous assignment: {0:.3f}'.format(nmi))
-            # except IndexError:
-            #     pass
-            print('####################### \n')
-        # # save running checkpoint
-        # torch.save({'epoch': epoch + 1,
-        #             'arch': args.arch,
-        #             'state_dict': model.state_dict(),
-        #             'optimizer' : optimizer.state_dict()},
-        #            os.path.join(args.exp, 'checkpoint.pth.tar'))
+        for epoch in range(args.start_epoch, args.epochs):
+            end = time.time()
 
-        # save cluster assignments
-        # cluster_log.log(deepcluster.lists)
+            # remove head
+            model.top_layer = None
+            #model.classifier = nn.Sequential(*list(model.classifier.children())[:-1])
+
+            # get the features for the whole dataset
+            features = compute_features(dataloader, model, len(dataset), device)
+
+            # cluster the features
+            if args.verbose:
+                print('Cluster the features')
+            clustering_loss, I = deepcluster.cluster(features, verbose=args.verbose)
+
+            # assign pseudo-labels
+            if args.verbose:
+                print('Assign pseudo labels')
+            train_dataset = clustering.cluster_assign(deepcluster.lists,
+                                                    dataset)
+
+            # uniformly sample per target
+            # sampler = UnifLabelSampler(int(args.reassign * len(train_dataset)),
+            #                            deepcluster.lists)
+
+            train_dataloader = torch.utils.data.DataLoader(
+                train_dataset,
+                shuffle=True,
+            #    collate_fn=pad_collate2,
+                batch_size=args.batch,
+                num_workers=args.workers,
+            #    sampler=sampler,
+                pin_memory=True,
+            )
+
+            # set last fully connected layer
+            # mlp = list(model.classifier.children())
+            # mlp.append(nn.ReLU(inplace=True).to(device))
+            # model.classifier = nn.Sequential(*mlp)
+            model.top_layer = nn.Linear(fd, len(deepcluster.lists))
+            model.top_layer.weight.data.normal_(0, 0.01)
+            model.top_layer.bias.data.zero_()
+            model.top_layer.to(device)
+
+            # train network with clusters as pseudo-labels
+            end = time.time()
+            loss = train(train_dataloader, model, criterion, optimizer, epoch, device)
+
+            # print log
+            if args.verbose:
+                print(f'###### Epoch {epoch} ###### \n Time: {(time.time() - end):.3f} s\n Clustering loss: {clustering_loss:.3f} \n ConvNet loss: {loss:.3f}')
+                try:
+                    nmi = normalized_mutual_info_score(
+                        clustering.arrange_clustering(deepcluster.lists),
+                        clustering.arrange_clustering(cluster_log[-1])
+                    )
+                    print(f'NMI against previous assignment: {nmi:.3f}')
+                except IndexError:
+                    pass
+                print('####################### \n')
+            # # save running checkpoint
+            # torch.save({'epoch': epoch + 1,
+            #             'arch': args.arch,
+            #             'state_dict': model.state_dict(),
+            #             'optimizer' : optimizer.state_dict()},
+            #            os.path.join(args.exp, 'checkpoint.pth.tar'))
+
+            # save cluster assignments
+            cluster_log.append(deepcluster.lists)
+
+        assigned_labels.append(I)
+    assigned_labels = torch.LongTensor(assigned_labels)
+    cons = consistency(assigned_labels)
+    
+    if args.verbose:
+        print(f'Consistency: {cons}')
+
+    if Path(args.data_dir, 'clusters.csv').exists():
+        gt_labels = pd.read_csv(Path(args.data_dir, 'clusters.csv'))['cluster_id'].to_numpy()
+        gt_labels = torch.LongTensor(gt_labels)
+        
+        pur_val_mean = np.mean([purity(x, gt_labels) for x in assigned_labels])
+        pur_val_std = np.std([purity(x, gt_labels) for x in assigned_labels])
+
+        print(f'Purity: {pur_val_mean}+-{pur_val_std}')
+
+    return
 
 
 def train(loader, model, crit, opt, epoch, device):
@@ -183,7 +208,6 @@ def train(loader, model, crit, opt, epoch, device):
     # data_time = AverageMeter()
     # forward_time = AverageMeter()
     # backward_time = AverageMeter()
-
     total_loss = 0
     N = 0
 
@@ -200,7 +224,7 @@ def train(loader, model, crit, opt, epoch, device):
     optimizer_tl = Adam(
         model.top_layer.parameters(),
         lr=args.lr,
-        weight_decay=10**args.wd,
+        weight_decay=args.wd,
     )
 
     end = time.time()
@@ -224,18 +248,14 @@ def train(loader, model, crit, opt, epoch, device):
         #         'optimizer' : opt.state_dict()
         #     }, path)
 
-        #target = target.cuda(async=True)
-        input_var = torch.autograd.Variable(input_tensor.to(device))
-        target_var = torch.autograd.Variable(target)
+        target = target.to(device)
+        input_tensor = input_tensor.to(device)
 
-        output = model(input_var)
-        loss = crit(output, target_var)
+        output = model(input_tensor)
+        loss = crit(output, target)
 
         total_loss += loss.item()
         N += input_tensor.shape[0]
-
-        # record loss
-        #losses.update(loss.data[0], input_tensor.size(0))
 
         # compute gradient and do SGD step
         opt.zero_grad()
