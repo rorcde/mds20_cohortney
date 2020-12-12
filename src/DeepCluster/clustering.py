@@ -6,7 +6,7 @@
 #
 import time
 
-#import faiss
+import faiss
 from sklearn.cluster import KMeans
 import numpy as np
 from scipy.sparse import csr_matrix, find
@@ -168,7 +168,8 @@ class Kmeans(object):
         #end = time.time()
 
         # PCA-reducing, whitening and L2-normalization
-        xb = preprocess_features(data)
+        #xb = preprocess_features(data)
+        xb = data
 
         # cluster the data
         I, loss = run_kmeans(xb, self.k, verbose)

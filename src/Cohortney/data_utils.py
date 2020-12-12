@@ -7,11 +7,16 @@ import re
 import pandas as pd
 
 
-def load_data(data_dir, maxlen=-1, ext='txt', datetime=True):
+def load_data(data_dir, maxsize=None, maxlen=-1, ext='txt', datetime=True):
     s = []
     classes = set()
+    nb_files = 0
     for file in os.listdir(data_dir):
         if file.endswith(f'.{ext}') and re.sub(fr'.{ext}', '', file).isnumeric():
+            if nb_files < maxsize:
+                nb_files += 1
+            else:
+                break
             df = pd.read_csv(Path(data_dir, file))
             classes = classes.union(set(df['event'].unique()))
             df['time'] = pd.to_datetime(df['time'])

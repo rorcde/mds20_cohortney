@@ -24,7 +24,8 @@ def random_seed(seed):
 def parse_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument('--data_dir', type=str, required=True)
-    parser.add_argument('--nmb_cluster', type=int)
+    parser.add_argument('--maxsize', type=int, default=None)
+    parser.add_argument('--nmb_cluster', type=int, default=10)
     parser.add_argument('--maxlen', type=int, default=2000)
     parser.add_argument('--ext', type=str, default='txt')
     parser.add_argument('--not_datetime', action='store_true')
@@ -33,20 +34,23 @@ def parse_arguments():
     parser.add_argument('--Th', type=float, default=80)
     parser.add_argument('--N', type=int, default=1500)
     parser.add_argument('--n', type=int, default=10)
-    parser.add_argument('--batch_size', type=int)
+    parser.add_argument('--start_epoch', type=int, default=0)
+    parser.add_argument('--epochs', type=int, default=10)
+    parser.add_argument('--batch', type=int, default=32)
     parser.add_argument('--lr', type=float, default=1e-3)
     parser.add_argument('--momentum', type=float, default=0.9)
     parser.add_argument('--wd', type=float, default=1e-3)
     parser.add_argument('--seed', type=int, default=42)
-    parser.add_argument('--workers', type=int, default=-1)
+    parser.add_argument('--workers', type=int, default=4)
     parser.add_argument('--device', type=str, default='cpu')
+    parser.add_argument('--verbose', action='store_true')
     args = parser.parse_args()
     return args
 
 
 def main(args):
     device = torch.device(args.device if torch.cuda.is_available() else 'cpu')
-    ss, Ts, class2idx, user_list = load_data(Path(args.data_dir), maxlen=args.maxlen, ext=args.ext, datetime=not args.not_datetime)
+    ss, Ts, class2idx, user_list = load_data(Path(args.data_dir), maxsize=args.maxsize, maxlen=args.maxlen, ext=args.ext, datetime=not args.not_datetime)
     
     #weird
     events = itertools.chain.from_iterable([sep_hawkes_proc(user_list, i) for i in range(len(class2idx))])
@@ -132,7 +136,7 @@ def main(args):
 
         # train network with clusters as pseudo-labels
         #end = time.time()
-        loss = train(train_dataloader, model, criterion, optimizer, epoch)
+        loss = train(train_dataloader, model, criterion, optimizer, epoch, device)
 
         # print log
         # if args.verbose:
@@ -161,7 +165,7 @@ def main(args):
         # cluster_log.log(deepcluster.images_lists)
 
 
-def train(loader, model, crit, opt, epoch):
+def train(loader, model, crit, opt, epoch, device):
     """Training of the CNN.
         Args:
             loader (torch.utils.data.DataLoader): Data loader
@@ -212,7 +216,7 @@ def train(loader, model, crit, opt, epoch):
         #     }, path)
 
         #target = target.cuda(async=True)
-        input_var = torch.autograd.Variable(input_tensor.cuda())
+        input_var = torch.autograd.Variable(input_tensor.to(device))
         target_var = torch.autograd.Variable(target)
 
         output = model(input_var)
@@ -247,7 +251,7 @@ def train(loader, model, crit, opt, epoch):
 
     return avg_loss
 
-
+@torch.no_grad()
 def compute_features(dataloader, model, N, device):
     # if args.verbose:
     #     print('Compute features')
@@ -256,7 +260,7 @@ def compute_features(dataloader, model, N, device):
     model.eval()
     # discard the label information in the dataloader
     for i, (input_tensor) in enumerate(dataloader):
-        input_var = torch.autograd.Variable(input_tensor, volatile=True)
+        input_var = torch.autograd.Variable(input_tensor)
         aux = model(input_var).data.cpu().numpy()
 
         if i == 0:

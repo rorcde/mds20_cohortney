@@ -34,7 +34,7 @@ class Encoder(nn.Module):
         super().__init__()
         self.input_size = input_size
         self.encoder_conv = nn.Sequential(
-                nn.Conv1d(in_channels=input_size, out_channels=512, kernel_size = 3, stride = 2, padding = 1),
+                nn.Conv1d(in_channels=1, out_channels=512, kernel_size = 3, stride = 2, padding = 1),
                 # nn.Linear(),
                 # nn.ReLU(),
                 nn.BatchNorm1d(512),
@@ -53,6 +53,8 @@ class Encoder(nn.Module):
                 )
 
     def forward(self, x):
+        x = x.unsqueeze(1)
         out = self.encoder_conv(x)
+        out = out.reshape(out.shape[0], -1)
         return out
         
