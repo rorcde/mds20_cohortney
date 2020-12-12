@@ -21,6 +21,7 @@ def parse_arguments():
     parser.add_argument('--dt', type=float, default=0.01)
     parser.add_argument('--max_jumps', type=int, default=1000)
     parser.add_argument('--save_dir', type=str, required=True)
+    parser.add_argument('--adj_density', type=float, default=0.25)
     parser.add_argument('--seed', type=int)
     
     args = parser.parse_args()
@@ -33,13 +34,13 @@ def random_seed(seed):
     torch.manual_seed(seed)
     
 
-def simulate_hawkes(n_nodes, n_decays, n_realiz, end_time, dt, max_jumps=1000, seed=None):
+def simulate_hawkes(n_nodes, n_decays, n_realiz, end_time, dt, max_jumps=1000, seed=None, adj_density=0.25):
     tss = []
 
     baselines = np.random.rand(n_nodes) / n_nodes
     #baselines = spsp.rand(1, n_nodes, density=0.5).toarray()[0] / n_nodes
     decays = 5 * np.random.rand(n_nodes, n_nodes)
-    adjacency = spsp.rand(n_nodes, n_nodes, density=0.25).toarray()
+    adjacency = spsp.rand(n_nodes, n_nodes, density=adj_density).toarray()
     # Simulation
 
     for i in range(n_realiz):
@@ -59,11 +60,11 @@ def simulate_hawkes(n_nodes, n_decays, n_realiz, end_time, dt, max_jumps=1000, s
     return tss 
 
 
-def simulate_clusters(n_clusters, n_nodes, n_decays, n_realiz, end_time, dt, max_jumps, seed=None):
+def simulate_clusters(n_clusters, n_nodes, n_decays, n_realiz, end_time, dt, max_jumps, seed=None, adj_density=None):
     clusters = []
     for i in range(n_clusters):
         seed_ = seed + i if seed is not None else None
-        clusters.append(simulate_hawkes(n_nodes, n_decays, n_realiz, end_time, dt, max_jumps, seed_))
+        clusters.append(simulate_hawkes(n_nodes, n_decays, n_realiz, end_time, dt, max_jumps, seed_, adj_density))
     
     return clusters
 
@@ -102,7 +103,7 @@ if __name__ == '__main__':
         random_seed(args.seed)
     print('Simulating...')
     clusters = simulate_clusters(args.n_clusters, args.n_nodes, 
-                args.n_decays, args.n_realiz_per_cluster, args.end_time, args.dt, args.max_jumps, args.seed)
+                args.n_decays, args.n_realiz_per_cluster, args.end_time, args.dt, args.max_jumps, args.seed, args.adj_density)
     dfs, cluster_ids = convert_clusters_to_dfs(clusters)
     print('Saving...')
     save_dir = Path(Path(__file__).parent.absolute(), 'simulated_Hawkes', args.save_dir)

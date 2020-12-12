@@ -8,6 +8,7 @@ import time
 
 import faiss
 from sklearn.cluster import KMeans
+from sklearn.preprocessing import StandardScaler
 import numpy as np
 from scipy.sparse import csr_matrix, find
 import torch
@@ -170,7 +171,8 @@ class Kmeans(object):
 
         # PCA-reducing, whitening and L2-normalization
         #xb = preprocess_features(data)
-        xb = data
+        std_sc = StandardScaler()
+        xb = std_sc.fit_transform(data)
 
         # cluster the data
         I, loss = run_kmeans(xb, self.k, verbose)
@@ -182,5 +184,3 @@ class Kmeans(object):
             print('k-means time: {0:.0f} s'.format(time.time() - end))
 
         return loss, I
-
-

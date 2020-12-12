@@ -19,12 +19,12 @@ def load_data(data_dir, maxsize=None, maxlen=-1, ext='txt', datetime=True):
                 break
             df = pd.read_csv(Path(data_dir, file))
             classes = classes.union(set(df['event'].unique()))
-            df['time'] = pd.to_datetime(df['time'])
             if datetime:
+                df['time'] = pd.to_datetime(df['time'])
                 df['time'] = (df['time'] - df['time'][0]) / np.timedelta64(1,'D')
             if maxlen > 0:
                 df = df.iloc[:maxlen]
-            df = df.drop(['id', 'option1'], axis=1)
+
             s.append(df)
 
     classes = list(classes)

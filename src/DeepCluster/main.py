@@ -76,7 +76,7 @@ def main(args):
 
     assigned_labels = []
     for run_id in range(args.nruns):
-        print(f'============= RUN {run_id} ===============')
+        print(f'============= RUN {run_id+1} ===============')
         model = SeqCNN(input_size, 1) #len(class2idx))
         model.top_layer = None
         model.to(device)
