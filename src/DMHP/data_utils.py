@@ -4,11 +4,11 @@ import numpy as np
 import torch
 
 
-def load_data(path, nfiles, maxlen=-1, endtime=None, datetime=False, type='csv'):
+def load_data(path, nfiles, maxlen=-1, endtime=None, datetime=False, ext='csv'):
     s = []
     classes = set()
     for i in range(1, nfiles + 1):
-        path_ = Path(path, f'{i}.{type}')
+        path_ = Path(path, f'{i}.{ext}')
         with path_.open('r') as f:
             df = pd.read_csv(f)
         classes = classes.union(set(df['event'].unique()))

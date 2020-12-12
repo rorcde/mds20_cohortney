@@ -9,6 +9,7 @@ Event Sequence Clustering](https://arxiv.org/pdf/1701.09177.pdf)
 
 Datasets:
 - IPTV dataset
+- Synthetic Hawkes processes
 - other datasets from the PointProcesses.com
 
 Tools:

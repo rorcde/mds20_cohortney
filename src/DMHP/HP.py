@@ -30,7 +30,7 @@ class PointProcessStorage:
 
     Args:
     - seqs - list of realizations, where each item is a tensor of size (L, 2)
-    - Tns - tensor of Tn for each realization
+    - Tns - tensor of Tn for each realization (each event's timestamp lies in (0, Tn))
     - basis_fs - list of basis functions, taking tensor as input
 
     """
@@ -179,7 +179,7 @@ class EM_clustering:
         r = torch.rand(self.N, self.K)
         r = r / r.sum(1)[:, None]
         for i, nin in tqdm(enumerate(ninner)):
-            # commented so far
+            # commented so far - can't compute real nll
             # mu, A = self.m_step(r, nin)
             # nll1 = self.hp_nll(r.sum(0) / self.N, mu, A)
 
@@ -187,7 +187,7 @@ class EM_clustering:
             mu2, A2 = self.m_step(r2, nin)
             nll2 = self.hp_nll(r2.sum(0) / self.N, mu2, A2)
 
-            # commented so far
+            # commented so far - can't compute real nll
             #if nll1 < nll2:
             if False:
                 pi = r.sum(0) / self.N
@@ -201,7 +201,7 @@ class EM_clustering:
             nll_history.append(nll1.item())
             print(f'\nNLL / N: {(nll1.item() / self.N):.4f}')
 
-            # commented so far
+            # commented so far - can't compute real nll
             # K = self.K
             # print('\n', self.K)
             # self.update_num_clusters(nll1)
@@ -223,7 +223,7 @@ class EM_clustering:
         """
         Computes negative log-likelihood lower bound (via Jensen inequality) given \pi, \mu, A
 
-        Need doublechecking
+        Need doublechecking - no way to compute real log-likelihood of DMM because of long sequences leading to overflow 
         """
         assert torch.isclose(pi.sum(0), torch.ones_like(pi.sum(0))), pi
         nll = 0
@@ -394,116 +394,12 @@ class EM_clustering:
             B = (2 / np.pi)**.5 * mu
 
             new_nll = self.hp_nll(pi, mu, A)
-            p = (torch.exp((nll - new_nll)/self.N)).item() #* \
-                    #self.model.p_A(A, Sigma) * self.model.p_mu(mu, B) * self.model.p_pi(pi, K) / \
-                    #(self.model.p_A() * self.model.p_mu() * self.model.p_pi() + 1e-5)).item()
+            p = (torch.exp((nll - new_nll)/self.N)).item() * \
+                    self.model.p_A(A, Sigma) * self.model.p_mu(mu, B) * self.model.p_pi(pi, K) / \
+                    (self.model.p_A() * self.model.p_mu() * self.model.p_pi() + 1e-5)).item()
             print(nll, new_nll, p, old_K, K)
             p = min(1, p)
             if random.random() < p:
                 self.update_model(pi, mu, A)
                 self.K = K
                 nll = new_nll
-
-
-# class HawkesProcess:
-#     """
-#     Implementation of Hawkes process model
-#     """
-#     def __init__(self, mu, a, basis_fs, Ts, s):
-#         """
-#         """
-#         self.mu = mu
-#         self.a = a
-#         self.basis_fs = basis_fs
-#         self.Ts = Ts
-#         self.s = s
-
-#         self.N = len(s)
-#         self.C = mu.shape[0]
-#         self.lambdas = None
-
-#     def intensity(self, ts, cs=None, s_ids=None):
-#         s_ids = np.arange(self.N) if s_ids is None else s_ids
-#         if cs is not None and len(cs) == len(ts):
-#             lambdat = torch.zeros(len(s_ids), len(ts))
-#         else:
-#             lambdat = torch.zeros(len(s_ids), len(ts), self.C)
-        
-#         for n, sn in enumerate(self.s):
-#             if n not in s_ids:
-#                 continue
-#             n_ = list(s_ids).index(n)
-
-#             if cs is not None:
-#                 lambdat[n_, :] = self.mu[cs.tolist()]
-#             else:
-#                 lambdat[n_, :, :] = self.mu[None, :]
-
-#             basis_vals = list()
-#             t_right_id = 0
-#             t_left_id = 0
-#             ts_id = 0
-            
-#             for t_id, ti in enumerate(sn[:, 0]):
-#                 if ti >= ts[ts_id]:
-#                     ts_id += 1
-#                     if ts_id >= len(ts):
-#                         break
-#                     t_left_id  = t_right_id
-#                     t_right_id = t_id
-                
-#                     if t_right_id - t_left_id > 0:
-#                         t_res = ts[ts_id:].unsqueeze(1).repeat(1, t_right_id - t_left_id) - sn[t_left_id : t_right_id, 0].unsqueeze(0).repeat(len(ts) - ts_id, 1)
-#                         cs_ = sn[t_left_id:t_right_id, 1]
-#                         basis_vals = torch.stack([g(t_res) for g in self.basis_fs], dim=-1)
-#                         if cs is not None:
-#                             a_s = self.a[cs[ts_id:].tolist(), :, :][:, cs_.tolist(), :]
-#                             lambdat[n_, ts_id:] += torch.einsum('abc,abc->a', a_s, torch.FloatTensor(basis_vals))
-#                         else:
-#                             a_s = self.a[:, cs_.tolist(), :]
-#                             lambdat[n_, ts_id:, :] += torch.einsum('abc,dbc->da', a_s, torch.FloatTensor(basis_vals))#.sum(-1).sum(-1)
-
-#         return lambdat
-
-#     def intensity_in_real_points(self):
-#         lambdas = []
-#         for _, sn in enumerate(self.s):
-#             #lamdan = self.mu
-#             t_res = sn[:, 0].unsqueeze(0).repeat(len(sn[:, 0]), 1)
-#             t_res = t_res - sn[:, 0][:, None]
-#             cs = sn[:, 1].unsqueeze(0).repeat(len(sn[:, 1]), 1)
-#             a_s = self.a[:, cs.tolist(), :]
-#             basic_vals = torch.stack([g(t_res)*(t_res > 0).float() for g in self.basis_fs], dim=-1)
-#             lambdan = self.mu[:, None ] + (a_s * basic_vals).sum(-1).sum(-1)
-#             lambdas.append(lambdan)
-#         return lambdas
-
-#     def intensity_integral(self, n_pts=100):
-#         ints = torch.zeros(self.N, self.C)
-#         if isinstance(self.Ts, (float, int)):
-#             ts = torch.FloatTensor(np.linspace(0, self.Ts, n_pts))
-#             ints += (ts[1] - ts[0]) * self.intensity(ts).sum(1)
-#         elif isinstance(self.Ts, list):
-#             for n, T in enumerate(self.Ts):
-#                 ts = torch.FloatTensor(np.linspace(0, T, n_pts))
-#                 s_ids = [n]
-#                 ints[n] += (ts[1] - ts[0]) * self.intensity(ts, s_ids=s_ids).sum(1)[0]
-#         else:
-#             raise ValueError()
-
-#         return ints
-
-#     @staticmethod
-#     def tailor_exp_log_lambda(lambdas):
-#         log_expectation = torch.log(lambdas).mean(0)
-#         expectation2 = lambdas.mean(0)**2
-#         var = (lambdas**2).mean(0) - lambdas.mean(0)**2
-#         return log_expectation - var * (2 * expectation2)**(-1)
-
-#     def log_likelihood(self):
-#         log_likelihood = 0
-#         lambdas = [self.intensity(sn[:, 0], cs=sn[:, 1]) for sn in self.s]
-#         log_likelihood += torch.stack([HawkesProcess.tailor_exp_log_lambda(l).sum(0) for l in lambdas], dim=0)
-#         log_likelihood -= self.intensity_integral().sum(-1)
-#         return log_likelihood
-        

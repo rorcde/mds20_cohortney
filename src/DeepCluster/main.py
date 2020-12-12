@@ -50,7 +50,7 @@ def parse_arguments():
 
 def main(args):
     device = torch.device(args.device if torch.cuda.is_available() else 'cpu')
-    ss, Ts, class2idx, user_list = load_data(Path(args.data_dir), maxsize=args.maxsize, maxlen=args.maxlen, ext=args.ext, datetime=not args.not_datetime)
+    ss, _, class2idx, user_list = load_data(Path(args.data_dir), maxsize=args.maxsize, maxlen=args.maxlen, ext=args.ext, datetime=not args.not_datetime)
     
     #weird
     events = itertools.chain.from_iterable([sep_hawkes_proc(user_list, i) for i in range(len(class2idx))])
@@ -61,11 +61,12 @@ def main(args):
     Delta_T = Delta_T[Delta_T< int(T_j)]
     Delta_T = tuple(Delta_T)
 
-    array, events_fws = arr_func(events, T_j, Delta_T)
+    array, _ = arr_func(events, T_j, Delta_T)
 
     #dataset = Dataset(array)
     dataset = [torch.FloatTensor(x) for x in array]
-    print('Loaded data')
+    if args.verbose:
+        print('Loaded data')
 
     input_size = dataset[0].shape[0]
 
@@ -74,10 +75,16 @@ def main(args):
     model.to(device)
     fd = model.fd
     
-    optimizer = SGD(
+    # optimizer = SGD(
+    #     filter(lambda x: x.requires_grad, model.parameters()),
+    #     lr=args.lr,
+    #     momentum=args.momentum,
+    #     weight_decay=args.wd,
+    # )
+
+    optimizer = Adam(
         filter(lambda x: x.requires_grad, model.parameters()),
         lr=args.lr,
-        momentum=args.momentum,
         weight_decay=args.wd,
     )
 
@@ -92,7 +99,7 @@ def main(args):
     deepcluster = clustering.Kmeans(args.nmb_cluster)
 
     for epoch in range(args.start_epoch, args.epochs):
-        #end = time.time()
+        end = time.time()
 
         # remove head
         model.top_layer = None
@@ -102,13 +109,13 @@ def main(args):
         features = compute_features(dataloader, model, len(dataset), device)
 
         # cluster the features
-        # if args.verbose:
-        #     print('Cluster the features')
+        if args.verbose:
+            print('Cluster the features')
         clustering_loss = deepcluster.cluster(features, verbose=args.verbose)
 
         # assign pseudo-labels
-        # if args.verbose:
-        #     print('Assign pseudo labels')
+        if args.verbose:
+            print('Assign pseudo labels')
         train_dataset = clustering.cluster_assign(deepcluster.lists,
                                                   dataset)
 
@@ -135,25 +142,21 @@ def main(args):
         model.top_layer.to(device)
 
         # train network with clusters as pseudo-labels
-        #end = time.time()
+        end = time.time()
         loss = train(train_dataloader, model, criterion, optimizer, epoch, device)
 
         # print log
-        # if args.verbose:
-        #     print('###### Epoch [{0}] ###### \n'
-        #           'Time: {1:.3f} s\n'
-        #           'Clustering loss: {2:.3f} \n'
-        #           'ConvNet loss: {3:.3f}'
-        #           .format(epoch, time.time() - end, clustering_loss, loss))
-        #     try:
-        #         nmi = normalized_mutual_info_score(
-        #             clustering.arrange_clustering(deepcluster.lists),
-        #             clustering.arrange_clustering(cluster_log.data[-1])
-        #         )
-        #         print('NMI against previous assignment: {0:.3f}'.format(nmi))
-        #     except IndexError:
-        #         pass
-        #     print('####################### \n')
+        if args.verbose:
+            print(f'###### Epoch {epoch} ###### \n Time: {(time.time() - end):.3f} s\n Clustering loss: {clustering_loss:.3f} \n ConvNet loss: {loss:.3f}')
+            # try:
+            #     nmi = normalized_mutual_info_score(
+            #         clustering.arrange_clustering(deepcluster.lists),
+            #         clustering.arrange_clustering(cluster_log.data[-1])
+            #     )
+            #     print('NMI against previous assignment: {0:.3f}'.format(nmi))
+            # except IndexError:
+            #     pass
+            print('####################### \n')
         # # save running checkpoint
         # torch.save({'epoch': epoch + 1,
         #             'arch': args.arch,
@@ -162,7 +165,7 @@ def main(args):
         #            os.path.join(args.exp, 'checkpoint.pth.tar'))
 
         # save cluster assignments
-        # cluster_log.log(deepcluster.images_lists)
+        # cluster_log.log(deepcluster.lists)
 
 
 def train(loader, model, crit, opt, epoch, device):
@@ -188,13 +191,19 @@ def train(loader, model, crit, opt, epoch, device):
     model.train()
 
     # create an optimizer for the last fc layer
-    optimizer_tl = torch.optim.SGD(
+    # optimizer_tl = SGD(
+    #     model.top_layer.parameters(),
+    #     lr=args.lr,
+    #     weight_decay=10**args.wd,
+    # )
+
+    optimizer_tl = Adam(
         model.top_layer.parameters(),
         lr=args.lr,
         weight_decay=10**args.wd,
     )
 
-    #end = time.time()
+    end = time.time()
     for i, (input_tensor, target) in enumerate(loader):
         #data_time.update(time.time() - end)
 
@@ -237,7 +246,7 @@ def train(loader, model, crit, opt, epoch, device):
 
         # measure elapsed time
         #batch_time.update(time.time() - end)
-        #end = time.time()
+        end = time.time()
 
         # if args.verbose and (i % 200) == 0:
         #     print('Epoch: [{0}][{1}/{2}]\t'
@@ -253,8 +262,8 @@ def train(loader, model, crit, opt, epoch, device):
 
 @torch.no_grad()
 def compute_features(dataloader, model, N, device):
-    # if args.verbose:
-    #     print('Compute features')
+    if args.verbose:
+        print('Compute features')
     #batch_time = AverageMeter()
     # end = time.time()
     model.eval()
@@ -283,7 +292,6 @@ def compute_features(dataloader, model, N, device):
     #               .format(i, len(dataloader), batch_time=batch_time))
     return features
     
-
 
 if __name__ == "__main__":
     args = parse_arguments()

@@ -142,8 +142,9 @@ def run_kmeans(x, nmb_clusters, verbose=False):
 
     kmeans = KMeans(n_clusters=nmb_clusters, init='k-means++', max_iter=300, n_init=10)
     I = kmeans.fit_predict(x)
+    loss = kmeans.inertia_
 
-    return [int(n) for n in I], None #losses[-1]
+    return [int(n) for n in I], loss
 
 
 def arrange_clustering(images_lists):
@@ -165,7 +166,7 @@ class Kmeans(object):
             Args:
                 x_data (np.array N * dim): data to cluster
         """
-        #end = time.time()
+        end = time.time()
 
         # PCA-reducing, whitening and L2-normalization
         #xb = preprocess_features(data)
@@ -177,8 +178,8 @@ class Kmeans(object):
         for i in range(len(data)):
             self.lists[I[i]].append(i)
 
-        # if verbose:
-        #     print('k-means time: {0:.0f} s'.format(time.time() - end))
+        if verbose:
+            print('k-means time: {0:.0f} s'.format(time.time() - end))
 
         return loss
 
