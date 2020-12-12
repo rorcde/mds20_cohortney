@@ -17,7 +17,6 @@ def load_data(path, nfiles, maxlen=-1, endtime=None, datetime=False, type='csv')
             df['time'] = (df['time'] - df['time'][0]) / np.timedelta64(1,'D')
         if maxlen > 0:
             df = df.iloc[:maxlen]
-        #df = df.drop(['id', 'option1'], axis=1)
         s.append(df[['time', 'event']])
 
     classes = list(classes)

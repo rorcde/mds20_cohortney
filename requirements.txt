@@ -1,1 +1,7 @@
+numpy
+pandas
+sklearn
+torch
 tick
+# faiss-cpu
+# faiss-gpu

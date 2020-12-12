@@ -16,4 +16,21 @@ Tools:
 - TQDM
 - Pydata stack library
 
+### Installation
+
+git clone ...
+
+### Setup
+
+in root dir:
+
+python -m venv cohortney
+
+. cohohortney/bin/activate
+
+cd mds20_cohortney
+
+pip install -r requirements.txt
+
+
 The code organization structure:
