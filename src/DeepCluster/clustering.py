@@ -1,9 +1,3 @@
-# Copyright (c) 2017-present, Facebook, Inc.
-# All rights reserved.
-#
-# This source code is licensed under the license found in the
-# LICENSE file in the root directory of this source tree.
-#
 import time
 
 import faiss
@@ -19,14 +13,11 @@ __all__ = ['Kmeans', 'cluster_assign', 'arrange_clustering']
 
 
 class ReassignedDataset(data.Dataset):
-    """A dataset where the new images labels are given in argument.
+    """A dataset where the new labels are given in argument.
     Args:
-        image_indexes (list): list of data indexes
+        indexes (list): list of data indexes
         pseudolabels (list): list of labels for each data
-        dataset (list): list of tuples with paths to images
-        transform (callable, optional): a function/transform that takes in
-                                        an PIL image and returns a
-                                        transformed version
+        dataset (list): 
     """
 
     def __init__(self, indexes, pseudolabels, dataset, transform=None):
@@ -47,7 +38,7 @@ class ReassignedDataset(data.Dataset):
         Args:
             index (int): index of data
         Returns:
-            tuple: (image, pseudolabel) where pseudolabel is the cluster of index datapoint
+            tuple: (seq, pseudolabel) where pseudolabel is the cluster of index datapoint
         """
         item, pseudolabel = self.dataset[index]
 
@@ -84,7 +75,7 @@ def preprocess_features(npdata, pca=256):
 def cluster_assign(lists, dataset):
     """Creates a dataset from clustering, with clusters as labels.
     Args:
-        images_lists (list of list): for each cluster, the list of image indexes
+        lists (list of list): for each cluster, the list of indexes
                                     belonging to this cluster
         dataset (list): initial dataset
     Returns:
@@ -97,13 +88,6 @@ def cluster_assign(lists, dataset):
     for cluster, seqs in enumerate(lists):
         indexes.extend(seqs)
         pseudolabels.extend([cluster] * len(seqs))
-
-    # normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
-    #                                  std=[0.229, 0.224, 0.225])
-    # t = transforms.Compose([transforms.RandomResizedCrop(224),
-    #                         transforms.RandomHorizontalFlip(),
-    #                         transforms.ToTensor(),
-    #                         normalize])
 
     return ReassignedDataset(indexes, pseudolabels, dataset)
 
@@ -148,13 +132,13 @@ def run_kmeans(x, nmb_clusters, verbose=False):
     return [int(n) for n in I], loss
 
 
-def arrange_clustering(images_lists):
+def arrange_clustering(lists):
     pseudolabels = []
-    image_indexes = []
-    for cluster, images in enumerate(images_lists):
-        image_indexes.extend(images)
-        pseudolabels.extend([cluster] * len(images))
-    indexes = np.argsort(image_indexes)
+    indexes = []
+    for cluster, seqs in enumerate(lists):
+        indexes.extend(seqs)
+        pseudolabels.extend([cluster] * len(seqs))
+    indexes = np.argsort(indexes)
     return np.asarray(pseudolabels)[indexes]
 
 
