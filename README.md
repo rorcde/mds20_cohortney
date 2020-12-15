@@ -43,4 +43,33 @@ python setup.py install
 
 The code organization structure:
 
+### Running
 
+#### DeepCluster over Cohortney
+
+run on synthetic dataset:
+
+```bat
+python src/DeepCluster/main.py 
+    --data_dir data/simulated_Hawkes/K3_C1  
+    --verbose 
+    --epochs 10 
+    --nruns 3
+    --not_datetime
+    --ext csv 
+    --batch 128 
+    --nmb_cluster 3
+```
+
+run on IPTV dataset:
+
+```bat
+python src/DeepCluster/main.py 
+    --data_dir data/IPTV_Data
+    --verbose 
+    --epochs 10 
+    --nruns 3
+    --ext txt 
+    --batch 128 
+    --nmb_cluster 10
+ ```
