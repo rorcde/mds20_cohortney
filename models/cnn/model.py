@@ -34,22 +34,33 @@ class Encoder(nn.Module):
     def __init__(self, in_channels):
         super().__init__()
         self.in_channels = in_channels
+        # self.encoder_conv = nn.Sequential(
+        #         nn.Conv1d(in_channels=in_channels, out_channels=512, kernel_size = 3, stride = 2, padding = 1),
+        #         # nn.Linear(),
+        #         # nn.ReLU(),
+        #         #nn.BatchNorm1d(512),
+        #         nn.Conv1d(in_channels=512, out_channels=256, kernel_size = 3, stride = 2, padding = 1),
+        #         # nn.ReLU(),
+        #         #nn.BatchNorm1d(256),
+        #         nn.Conv1d(in_channels=256, out_channels=128, kernel_size = 3, stride = 2, padding = 1),
+        #         # nn.BatchNorm1d(n)
+        #         #nn.BatchNorm1d(128),
+        #         nn.Conv1d(in_channels=128, out_channels=64, kernel_size = 3, stride = 2, padding = 1),
+        #         #nn.BatchNorm1d(64),
+        #         nn.Conv1d(in_channels=64, out_channels=32, kernel_size = 3, stride = 2, padding = 1),
+        #         #nn.BatchNorm1d(32),
+        #         nn.Conv1d(in_channels=32, out_channels=16, kernel_size = 3, stride = 2, padding = 1)
+        #         # nn.Linear(in_features=15, out_features=n)
+        #         )
         self.encoder_conv = nn.Sequential(
-                nn.Conv1d(in_channels=in_channels, out_channels=512, kernel_size = 3, stride = 2, padding = 1),
+                nn.Conv1d(in_channels=in_channels, out_channels=64, kernel_size = 5, stride = 2, padding = 1),
                 # nn.Linear(),
                 # nn.ReLU(),
-                nn.BatchNorm1d(512),
-                nn.Conv1d(in_channels=512, out_channels=256, kernel_size = 3, stride = 2, padding = 1),
+                #nn.BatchNorm1d(512),
+                nn.Conv1d(in_channels=64, out_channels=32, kernel_size = 5, stride = 2, padding = 1),
                 # nn.ReLU(),
-                nn.BatchNorm1d(256),
-                nn.Conv1d(in_channels=256, out_channels=128, kernel_size = 3, stride = 2, padding = 1),
-                # nn.BatchNorm1d(n)
-                nn.BatchNorm1d(128),
-                nn.Conv1d(in_channels=128, out_channels=64, kernel_size = 3, stride = 2, padding = 1),
-                nn.BatchNorm1d(64),
-                nn.Conv1d(in_channels=64, out_channels=32, kernel_size = 3, stride = 2, padding = 1),
-                nn.BatchNorm1d(32),
-                nn.Conv1d(in_channels=32, out_channels=16, kernel_size = 3, stride = 2, padding = 1)
+                #nn.BatchNorm1d(256),
+                nn.Conv1d(in_channels=32, out_channels=16, kernel_size = 3, stride = 2, padding = 1),
                 # nn.Linear(in_features=15, out_features=n)
                 )
 

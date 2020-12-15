@@ -1,9 +1,3 @@
-# Copyright (c) 2017-present, Facebook, Inc.
-# All rights reserved.
-#
-# This source code is licensed under the license found in the
-# LICENSE file in the root directory of this source tree.
-#
 import time
 
 import faiss
@@ -21,17 +15,13 @@ __all__ = ['Kmeans', 'cluster_assign', 'arrange_clustering']
 class ReassignedDataset(data.Dataset):
     """A dataset where the new images labels are given in argument.
     Args:
-        image_indexes (list): list of data indexes
+        indexes (list): list of data indexes
         pseudolabels (list): list of labels for each data
-        dataset (list): list of tuples with paths to images
-        transform (callable, optional): a function/transform that takes in
-                                        an PIL image and returns a
-                                        transformed version
+        dataset (list): dataset
     """
 
-    def __init__(self, indexes, pseudolabels, dataset, transform=None):
+    def __init__(self, indexes, pseudolabels, dataset):
         self.dataset = self.make_dataset(indexes, pseudolabels, dataset)
-        # self.transform = transform
 
     def make_dataset(self, indexes, pseudolabels, dataset):
         label_to_idx = {label: idx for idx, label in enumerate(set(pseudolabels))}
@@ -141,7 +131,7 @@ def run_kmeans(x, nmb_clusters, verbose=False):
     # if verbose:
     #     print('k-means loss evolution: {0}'.format(losses))
 
-    kmeans = KMeans(n_clusters=nmb_clusters, init='k-means++', max_iter=300, n_init=10)
+    kmeans = KMeans(n_clusters=nmb_clusters, init='k-means++', max_iter=20, n_init=10)
     I = kmeans.fit_predict(x)
     loss = kmeans.inertia_
 

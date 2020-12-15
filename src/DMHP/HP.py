@@ -394,7 +394,7 @@ class EM_clustering:
             B = (2 / np.pi)**.5 * mu
 
             new_nll = self.hp_nll(pi, mu, A)
-            p = (torch.exp((nll - new_nll)/self.N)).item() * \
+            p = (torch.exp((nll - new_nll)/self.N) * \
                     self.model.p_A(A, Sigma) * self.model.p_mu(mu, B) * self.model.p_pi(pi, K) / \
                     (self.model.p_A() * self.model.p_mu() * self.model.p_pi() + 1e-5)).item()
             print(nll, new_nll, p, old_K, K)
