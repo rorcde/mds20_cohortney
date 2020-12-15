@@ -25,16 +25,22 @@ git clone https://github.com/rodrigorivera/mds20_cohortney
 
 ### Setup
 
-in root dir:
 
 ```bat
-python -m venv cohortney
+cd [VENV]
 
-. cohortney/bin/activate
+virtualenv cohortney
 
-cd mds20_cohortney
+source cohortney/bin/activate
+```
 
+back in repository dir:
+```bat
 pip install -r requirements.txt
+
+python setup.py install
 ```
 
 The code organization structure:
+
+
