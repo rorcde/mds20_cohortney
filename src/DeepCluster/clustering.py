@@ -17,12 +17,11 @@ class ReassignedDataset(data.Dataset):
     Args:
         indexes (list): list of data indexes
         pseudolabels (list): list of labels for each data
-        dataset (list): 
+        dataset (list): dataset
     """
 
-    def __init__(self, indexes, pseudolabels, dataset, transform=None):
+    def __init__(self, indexes, pseudolabels, dataset):
         self.dataset = self.make_dataset(indexes, pseudolabels, dataset)
-        # self.transform = transform
 
     def make_dataset(self, indexes, pseudolabels, dataset):
         label_to_idx = {label: idx for idx, label in enumerate(set(pseudolabels))}
@@ -125,7 +124,7 @@ def run_kmeans(x, nmb_clusters, verbose=False):
     # if verbose:
     #     print('k-means loss evolution: {0}'.format(losses))
 
-    kmeans = KMeans(n_clusters=nmb_clusters, init='k-means++', max_iter=300, n_init=10)
+    kmeans = KMeans(n_clusters=nmb_clusters, init='k-means++', max_iter=20, n_init=10)
     I = kmeans.fit_predict(x)
     loss = kmeans.inertia_
 

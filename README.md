@@ -25,16 +25,51 @@ git clone https://github.com/rodrigorivera/mds20_cohortney
 
 ### Setup
 
-in root dir:
 
 ```bat
-python -m venv cohortney
+cd [VENV]
 
-. cohortney/bin/activate
+virtualenv cohortney
 
-cd mds20_cohortney
+source cohortney/bin/activate
+```
 
+back in repository dir:
+```bat
 pip install -r requirements.txt
+
+python setup.py install
 ```
 
 The code organization structure:
+
+### Usage
+
+#### DeepCluster over Cohortney
+
+run on synthetic dataset:
+
+```bat
+python src/DeepCluster/main.py 
+    --data_dir data/simulated_Hawkes/K3_C1  
+    --verbose 
+    --epochs 10 
+    --nruns 3
+    --not_datetime
+    --ext csv 
+    --batch 128 
+    --nmb_cluster 3
+```
+
+run on IPTV dataset:
+
+```bat
+python src/DeepCluster/main.py 
+    --data_dir data/IPTV_Data
+    --verbose 
+    --epochs 10 
+    --nruns 3
+    --ext txt 
+    --batch 128 
+    --nmb_cluster 10
+ ```

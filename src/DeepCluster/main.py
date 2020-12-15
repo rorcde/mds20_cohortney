@@ -43,7 +43,7 @@ def parse_arguments():
     parser.add_argument('--lr', type=float, default=1e-3)
     parser.add_argument('--momentum', type=float, default=0.9)
     parser.add_argument('--wd', type=float, default=1e-3)
-    parser.add_argument('--seed', type=int, default=42)
+    parser.add_argument('--seed', type=int)
     parser.add_argument('--workers', type=int, default=4)
     parser.add_argument('--device', type=str, default='cpu')
     parser.add_argument('--verbose', action='store_true')
@@ -175,11 +175,13 @@ def main(args):
             cluster_log.append(deepcluster.lists)
 
         assigned_labels.append(I)
+        if args.verbose:
+            print(f'Sizes of clusters: {", ".join([str((torch.tensor(I) == i).sum().item()) for i in range(args.nmb_cluster)])}\n')
     assigned_labels = torch.LongTensor(assigned_labels)
     cons = consistency(assigned_labels)
     
     if args.verbose:
-        print(f'Consistency: {cons}')
+        print(f'Consistency: {cons}\n')
 
     if Path(args.data_dir, 'clusters.csv').exists():
         gt_labels = pd.read_csv(Path(args.data_dir, 'clusters.csv'))['cluster_id'].to_numpy()
@@ -267,14 +269,6 @@ def train(loader, model, crit, opt, epoch, device):
         # measure elapsed time
         #batch_time.update(time.time() - end)
         end = time.time()
-
-        # if args.verbose and (i % 200) == 0:
-        #     print('Epoch: [{0}][{1}/{2}]\t'
-        #           'Time: {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
-        #           'Data: {data_time.val:.3f} ({data_time.avg:.3f})\t'
-        #           'Loss: {loss.val:.4f} ({loss.avg:.4f})'
-        #           .format(epoch, i, len(loader), batch_time=batch_time,
-        #                   data_time=data_time, loss=losses))
 
     avg_loss = total_loss / N
 
