@@ -43,7 +43,7 @@ python setup.py install
 
 The code organization structure:
 
-### Running
+### Usage
 
 #### DeepCluster over Cohortney
 
