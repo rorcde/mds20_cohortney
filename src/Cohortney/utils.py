@@ -1,5 +1,6 @@
 import torch
 import numpy as np
+from collections import OrderedDict
 
 
 def fws(p, t1, t2):
@@ -40,7 +41,7 @@ def make_grid(gamma, T_b, T_h, N, n):
 
 
 def arr_func(events, T_j, Delta_T):
-    events_fws = dict()
+    events_fws = OrderedDict()
     for p_k in events:
         fws_val =  fws_numerical_array(p_k, Delta_T)
 
@@ -55,4 +56,22 @@ def arr_func(events, T_j, Delta_T):
     for val in events_fws.values():
         array.append(list(val[0]))
     return array, events_fws
+
+
+# def arr_func_fixed(events, T_j, Delta_T):
+#     events_fws = dict()
+#     for s_id, p_k in enumerate(events):
+#         fws_val =  fws_numerical_array(p_k, Delta_T)
+
+#         p_k1 = tuple(p_k)
+#         if p_k1 not in events_fws.keys():
+#             events_fws[p_k1] = []
+#             events_fws[p_k1].append(fws_val)
+#         else:
+#             events_fws[p_k1].append(fws_val)
+
+#     array = []
+#     for val in events_fws.values():
+#         array.append(list(val[0]))
+#     return array, events_fws
     

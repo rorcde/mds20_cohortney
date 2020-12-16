@@ -30,7 +30,7 @@ def load_data(data_dir, maxsize=None, maxlen=-1, ext='txt', datetime=True):
     s = []
     classes = set()
     nb_files = 0
-    for file in os.listdir(data_dir):
+    for file in sorted(os.listdir(data_dir), key=lambda x: int(re.sub(fr'.{ext}', '', x)) if re.sub(fr'.{ext}', '', x).isdigit() else 0):
         if file.endswith(f'.{ext}') and re.sub(fr'.{ext}', '', file).isnumeric():
             if maxsize is None or nb_files <= maxsize:
                 nb_files += 1

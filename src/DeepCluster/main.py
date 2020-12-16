@@ -72,7 +72,7 @@ def main(args):
     dataset = torch.FloatTensor(array) #.reshape(len(ss), len(class2idx), -1)  # for x in array]
     if args.verbose:
         print('Loaded data')
-        print(dataset.shape)
+        print(f'Dataset shape: {dataset.shape}')
     input_size = dataset[0].shape[0]
 
     assigned_labels = []
@@ -93,6 +93,7 @@ def main(args):
 
         dataloader = torch.utils.data.DataLoader(dataset, 
                                                 #collate_fn=pad_collate1,
+                                                shuffle=False,
                                                 batch_size=args.batch,
                                                 num_workers=args.workers,
                                                 pin_memory=True)

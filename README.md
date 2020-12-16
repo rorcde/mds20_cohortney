@@ -35,9 +35,18 @@ source cohortney/bin/activate
 ```
 
 back in repository dir:
+
 ```bat
 pip install -r requirements.txt
+```
 
+to install the dependencies run one of the following:
+
+```bat
+pip install -e .
+```
+
+```bat
 python setup.py install
 ```
 
