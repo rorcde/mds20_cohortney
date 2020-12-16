@@ -3,5 +3,6 @@ pandas
 sklearn
 torch
 tick
-faiss-cpu
-faiss-gpu
+pytorch_lightning
+# faiss-cpu
+# faiss-gpu
