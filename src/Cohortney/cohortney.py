@@ -250,7 +250,7 @@ def arr_func(events, T_j, delta_T, fws_func):
 def events_tensor(events_fws):
   keys_list = list(events_fws.keys())
   full_tensor_batch = torch.tensor([], dtype=torch.float32)
-  for key in keys_list[2:]:
+  for key in keys_list:
   # events_fws.values():
     
     ten = torch.tensor(events_fws[key]).unsqueeze(0)
@@ -262,7 +262,7 @@ def events_tensor(events_fws):
         ten2 = ten[:,i , :].unsqueeze(0)
         full_tensor_batch = torch.cat((full_tensor_batch, ten2), dim=0)
   if len(full_tensor_batch.shape) == 4:
-    full_tensor_batch = full_tensor_batch.squeeze()
+    full_tensor_batch = full_tensor_batch.squeeze(axis=1)
   return full_tensor_batch
 
 

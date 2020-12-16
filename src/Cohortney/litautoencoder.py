@@ -19,7 +19,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from torchvision import datasets, transforms
-#import cvxpy as cp
+import cvxpy as cp
 
 import pytorch_lightning as pl
 
@@ -38,11 +38,12 @@ from tqdm import tqdm, trange
 
 class LitAutoEncoder(pl.LightningModule):
     def __init__(self
+                 , in_channels: int
                  , n_latent_features: int):
         super().__init__()
         self.out = n_latent_features
         self.encoder = nn.Sequential(
-                nn.Conv1d(in_channels=1, out_channels=512, kernel_size = 3),
+                nn.Conv1d(in_channels=in_channels, out_channels=512, kernel_size = 3),
                 nn.BatchNorm1d(512),
                 nn.Conv1d(in_channels=512, out_channels=256, kernel_size = 3),
                 nn.BatchNorm1d(256),
@@ -66,7 +67,7 @@ class LitAutoEncoder(pl.LightningModule):
                 nn.BatchNorm1d(256), 
                 nn.ConvTranspose1d(in_channels=256, out_channels=512, kernel_size = 3),
                 nn.BatchNorm1d(512),
-                nn.ConvTranspose1d(in_channels=512, out_channels=1, kernel_size = 3 ),
+                nn.ConvTranspose1d(in_channels=512, out_channels=in_channels, kernel_size = 3 ),
                 )
 
 
