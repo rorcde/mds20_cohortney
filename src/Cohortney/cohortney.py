@@ -92,7 +92,7 @@ def multiclass_fws_array(user_dict, time_partition):
   fws = []
   for event, subseq in user_dict.items():
     arr = fws_numerical_array(subseq, time_partition)
-    fws.extend(arr)
+    fws.append(arr)
   return fws
 
 def fws_numerical_array(p, array):
@@ -252,7 +252,7 @@ def events_tensor(events_fws):
   full_tensor_batch = torch.tensor([], dtype=torch.float32)
   for key in keys_list[2:]:
   # events_fws.values():
-
+    
     ten = torch.tensor(events_fws[key]).unsqueeze(0)
     # print(ten.shape)
     if ten.shape[1] == 1:
@@ -261,5 +261,9 @@ def events_tensor(events_fws):
       for i in range(ten.shape[1]):
         ten2 = ten[:,i , :].unsqueeze(0)
         full_tensor_batch = torch.cat((full_tensor_batch, ten2), dim=0)
+  if len(full_tensor_batch.shape) == 4:
+    full_tensor_batch = full_tensor_batch.squeeze()
   return full_tensor_batch
+
+
 
