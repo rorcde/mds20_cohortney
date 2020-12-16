@@ -13,15 +13,15 @@ from tick.plot import plot_point_process
 
 def parse_arguments():
     parser = ArgumentParser()
-    parser.add_argument('--n_clusters', type=int, default=3)
-    parser.add_argument('--n_nodes', type=int, default=5)
-    parser.add_argument('--n_realiz_per_cluster', type=int, default=100)
-    parser.add_argument('--n_decays', type=int, default=3)
-    parser.add_argument('--end_time', type=float, default=100)
+    parser.add_argument('--n_clusters', type=int, default=3, help='number of clusters')
+    parser.add_argument('--n_nodes', type=int, default=5, help='dimensionality of Hawkes processes')
+    parser.add_argument('--n_realiz_per_cluster', type=int, default=100, help='number of realizations per cluster')
+    parser.add_argument('--n_decays', type=int, default=3, help='number of decays in Hawkes processes')
+    parser.add_argument('--end_time', type=float, default=100, help='maximal possible value of timesteps')
     parser.add_argument('--dt', type=float, default=0.01)
-    parser.add_argument('--max_jumps', type=int, default=1000)
-    parser.add_argument('--save_dir', type=str, required=True)
-    parser.add_argument('--adj_density', type=float, default=0.25)
+    parser.add_argument('--max_jumps', type=int, default=1000, help='maximal number of jumps in Hawkes processses')
+    parser.add_argument('--save_dir', type=str, required=True, help='directory to save simulated processes')
+    parser.add_argument('--adj_density', type=float, default=0.25, help='density of adjacency matrix of Hawkes processes')
     parser.add_argument('--seed', type=int)
     
     args = parser.parse_args()

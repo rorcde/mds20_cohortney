@@ -1,3 +1,7 @@
+#
+# This file contains implementations of 1d-CNN model for 
+# unsupervised learning of features using Deep Clustering
+#
 import torch
 from torch import nn
 from torch.nn import functional as F
@@ -17,10 +21,9 @@ class SeqCNN(pl.LightningModule):
             nn.ReLU()
         )
         self.top_layer = None
-        #self.device = device 
 
     def get_feature_dim(self):
-        inp = torch.zeros(3, self.input_size)
+        inp = torch.zeros(3, self.in_channels, self.input_size)
         out = self.encoder(inp)
         fd = out.shape[1]
         return fd
@@ -76,7 +79,6 @@ class Encoder(pl.LightningModule):
                 )
 
     def forward(self, x):
-        x = x.unsqueeze(1)
         out = self.encoder_conv(x)
         out = out.reshape(out.shape[0], -1)
         return out
