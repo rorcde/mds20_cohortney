@@ -2,9 +2,11 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 
+import pytorch_lightning as pl
 
-class SeqCNN(nn.Module):
-    def __init__(self, input_size, in_channels):
+
+class SeqCNN(pl.LightningModule):
+    def __init__(self, input_size, in_channels, device):
         super().__init__()
         self.input_size = input_size
         self.in_channels = in_channels
@@ -15,9 +17,10 @@ class SeqCNN(nn.Module):
             nn.ReLU()
         )
         self.top_layer = None
+        #self.device = device 
 
     def get_feature_dim(self):
-        inp = torch.zeros(1, self.input_size)
+        inp = torch.zeros(3, self.input_size)
         out = self.encoder(inp)
         fd = out.shape[1]
         return fd
@@ -29,8 +32,32 @@ class SeqCNN(nn.Module):
             out = self.top_layer(F.relu(out))
         return out
 
+    def training_step(self, batch, batch_idx):
+        input_tensor, target = batch 
+        target = target.to(self.device)
+        input_tensor = input_tensor.to(self.device)
 
-class Encoder(nn.Module):
+        output = self(input_tensor)
+        loss = nn.CrossEntropyLoss()(output, target)
+        # self.log('train_loss', loss)
+        return loss
+
+    def training_epoch_end(self, outputs):
+        pass
+        # losses = torch.as_tensor([o['loss'] for o in outputs])
+        # self.log('avg_train_loss', losses.mean(), prog_bar=True)
+
+    def validation_step(self, batch, batch_idx):
+        pass
+
+    def validation_epoch_end(self, outputs):
+        pass
+
+    def configure_optimizers(self):
+        pass
+
+
+class Encoder(pl.LightningModule):
     def __init__(self, in_channels):
         super().__init__()
         self.in_channels = in_channels

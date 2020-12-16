@@ -1,6 +1,4 @@
 import time
-
-import faiss
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
 import numpy as np

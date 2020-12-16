@@ -78,17 +78,12 @@ def main(args):
     assigned_labels = []
     for run_id in range(args.nruns):
         print(f'============= RUN {run_id+1} ===============')
-        model = SeqCNN(input_size, 1) #len(class2idx))
+        in_channels = 1 #len(class2idx))
+        model = SeqCNN(input_size, in_channels, device=device)
         model.top_layer = None
         model.to(device)
         fd = model.fd
         
-        # optimizer = SGD(
-        #     filter(lambda x: x.requires_grad, model.parameters()),
-        #     lr=args.lr,
-        #     momentum=args.momentum,
-        #     weight_decay=args.wd,
-        # )
         optimizer = Adam(
             filter(lambda x: x.requires_grad, model.parameters()),
             lr=args.lr,
@@ -110,7 +105,6 @@ def main(args):
 
             # remove head
             model.top_layer = None
-            #model.classifier = nn.Sequential(*list(model.classifier.children())[:-1])
 
             # get the features for the whole dataset
             features = compute_features(dataloader, model, len(dataset), device)
@@ -141,9 +135,6 @@ def main(args):
             )
 
             # set last fully connected layer
-            # mlp = list(model.classifier.children())
-            # mlp.append(nn.ReLU(inplace=True).to(device))
-            # model.classifier = nn.Sequential(*mlp)
             model.top_layer = nn.Linear(fd, args.nmb_cluster) #len(deepcluster.lists))
             model.top_layer.weight.data.normal_(0, 0.01)
             model.top_layer.bias.data.zero_()
@@ -206,15 +197,8 @@ def train(loader, model, crit, opt, epoch, device):
                                    requires_grad in model except top layer
             epoch (int)
     """
-    # batch_time = AverageMeter()
-    # losses = AverageMeter()
-    # data_time = AverageMeter()
-    # forward_time = AverageMeter()
-    # backward_time = AverageMeter()
     total_loss = 0
     N = 0
-
-    # switch to train mode
     model.train()
 
     #create an optimizer for the last fc layer
@@ -224,16 +208,7 @@ def train(loader, model, crit, opt, epoch, device):
         weight_decay=args.wd,
     )
 
-    # optimizer_tl = Adam(
-    #     model.top_layer.parameters(),
-    #     lr=args.lr,
-    #     weight_decay=args.wd,
-    # )
-
-    end = time.time()
     for i, (input_tensor, target) in enumerate(loader):
-        #data_time.update(time.time() - end)
-
         # save checkpoint
         # n = len(loader) * epoch + i
         # if n % args.checkpoints == 0:
@@ -242,8 +217,6 @@ def train(loader, model, crit, opt, epoch, device):
         #         'checkpoints',
         #         'checkpoint_' + str(n / args.checkpoints) + '.pth.tar',
         #     )
-        #     if args.verbose:
-        #         print('Save checkpoint at: {0}'.format(path))
         #     torch.save({
         #         'epoch': epoch + 1,
         #         'arch': args.arch,
@@ -267,10 +240,6 @@ def train(loader, model, crit, opt, epoch, device):
         opt.step()
         optimizer_tl.step()
 
-        # measure elapsed time
-        #batch_time.update(time.time() - end)
-        end = time.time()
-
     avg_loss = total_loss / N
 
     return avg_loss
@@ -279,8 +248,6 @@ def train(loader, model, crit, opt, epoch, device):
 def compute_features(dataloader, model, N, device):
     if args.verbose:
         print('Compute features')
-    #batch_time = AverageMeter()
-    # end = time.time()
     model.eval()
     # discard the label information in the dataloader
     for i, (input_tensor) in enumerate(dataloader):
@@ -297,14 +264,6 @@ def compute_features(dataloader, model, N, device):
             # special treatment for final batch
             features[i * args.batch:] = aux
 
-        # measure elapsed time
-        # batch_time.update(time.time() - end)
-        # end = time.time()
-
-    #     if args.verbose and (i % 200) == 0:
-    #         print('{0} / {1}\t'
-    #               'Time: {batch_time.val:.3f} ({batch_time.avg:.3f})'
-    #               .format(i, len(dataloader), batch_time=batch_time))
     return features
     
 

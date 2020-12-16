@@ -8,6 +8,25 @@ import pandas as pd
 
 
 def load_data(data_dir, maxsize=None, maxlen=-1, ext='txt', datetime=True):
+    """
+    Loads the sequences saved in the given directory.
+
+    Args:
+        data_dir    (str, Path) - directory containing sequences
+        maxsize     (int)       - maximum number of sequences to load
+        maxlen      (int)       - maximum length of sequence, the sequences longer than maxlen will be truncated
+        ext         (str)       - extension of files in data_dir directory
+        datetime    (bool)      - variable meaning if time values in files are represented in datetime format
+
+    Returns:
+        ss          (List(torch.Tensor))    - list of torch.Tensor containing sequences. Each tensor has shape (L, 2) and represents event sequence 
+                                                as sequence of pairs (t, c). t - time, c - event type.
+        Ts          (torch.Tensor)          - tensor of right edges T_n of interavls (0, T_n) in which point processes realizations lie.
+        class2idx   (Dict)                  - dict of event types and their indexes
+        user_list   (List(Dict))            - representation of sequences siutable for Cohortny
+             
+    """
+
     s = []
     classes = set()
     nb_files = 0
