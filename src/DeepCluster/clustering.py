@@ -124,7 +124,7 @@ def run_kmeans(x, nmb_clusters, verbose=False):
     # if verbose:
     #     print('k-means loss evolution: {0}'.format(losses))
 
-    kmeans = KMeans(n_clusters=nmb_clusters, init='k-means++', max_iter=20, n_init=10)
+    kmeans = KMeans(n_clusters=nmb_clusters, init='k-means++', max_iter=20, n_init=1)
     I = kmeans.fit_predict(x)
     loss = kmeans.inertia_
 

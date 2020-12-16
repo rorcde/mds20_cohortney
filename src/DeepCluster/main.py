@@ -36,7 +36,7 @@ def parse_arguments():
     parser.add_argument('--Tb', type=float, default=7e-6)
     parser.add_argument('--Th', type=float, default=80)
     parser.add_argument('--N', type=int, default=1500)
-    parser.add_argument('--n', type=int, default=10)
+    parser.add_argument('--n', type=int, default=4)
     parser.add_argument('--start_epoch', type=int, default=0)
     parser.add_argument('--epochs', type=int, default=10)
     parser.add_argument('--batch', type=int, default=32)
@@ -72,6 +72,7 @@ def main(args):
     dataset = torch.FloatTensor(array) #.reshape(len(ss), len(class2idx), -1)  # for x in array]
     if args.verbose:
         print('Loaded data')
+        print(dataset.shape)
     input_size = dataset[0].shape[0]
 
     assigned_labels = []
@@ -143,7 +144,7 @@ def main(args):
             # mlp = list(model.classifier.children())
             # mlp.append(nn.ReLU(inplace=True).to(device))
             # model.classifier = nn.Sequential(*mlp)
-            model.top_layer = nn.Linear(fd, len(deepcluster.lists))
+            model.top_layer = nn.Linear(fd, args.nmb_cluster) #len(deepcluster.lists))
             model.top_layer.weight.data.normal_(0, 0.01)
             model.top_layer.bias.data.zero_()
             model.top_layer.to(device)
@@ -216,18 +217,18 @@ def train(loader, model, crit, opt, epoch, device):
     # switch to train mode
     model.train()
 
-    # create an optimizer for the last fc layer
-    # optimizer_tl = SGD(
-    #     model.top_layer.parameters(),
-    #     lr=args.lr,
-    #     weight_decay=10**args.wd,
-    # )
-
-    optimizer_tl = Adam(
+    #create an optimizer for the last fc layer
+    optimizer_tl = SGD(
         model.top_layer.parameters(),
         lr=args.lr,
         weight_decay=args.wd,
     )
+
+    # optimizer_tl = Adam(
+    #     model.top_layer.parameters(),
+    #     lr=args.lr,
+    #     weight_decay=args.wd,
+    # )
 
     end = time.time()
     for i, (input_tensor, target) in enumerate(loader):
