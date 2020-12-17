@@ -11,6 +11,15 @@ Datasets:
 - IPTV dataset
 - Synthetic Hawkes processes
 
+# Table of Contents
+1. [Repository structure](#rep_str) 
+2. [Installation](#inst)
+3. [Setup](#setup)
+4. [Usage](#usage)
+
+### Repository structure
+
+
 ### Installation
 
 ```bat
