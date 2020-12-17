@@ -38,7 +38,7 @@ def parse_arguments():
     parser.add_argument('--gamma', type=float, default=1.4)
     parser.add_argument('--Tb', type=float, default=7e-6)
     parser.add_argument('--Th', type=float, default=80)
-    parser.add_argument('--N', type=int, default=1500)
+    parser.add_argument('--N', type=int, default=2500)
     parser.add_argument('--n', type=int, default=4, help='n for partition')
     # hyperparameters for training
     parser.add_argument('--start_epoch', type=int, default=0)
@@ -117,6 +117,14 @@ def main(args):
                 print('Cluster the features')
             clustering_loss, I = deepcluster.cluster(features, verbose=args.verbose)
 
+            if Path(args.data_dir, 'clusters.csv').exists() and args.verbose:
+                gt_labels = pd.read_csv(Path(args.data_dir, 'clusters.csv'))['cluster_id'].to_numpy()
+                gt_labels = torch.LongTensor(gt_labels)
+                
+                pur = purity(torch.LongTensor(I), gt_labels)
+                if args.verbose:
+                    print(f'Purity: {pur:.4f}')
+
             # assign pseudo-labels
             if args.verbose:
                 print('Assign pseudo labels')
@@ -163,6 +171,7 @@ def main(args):
             # save cluster assignments
             cluster_log.append(deepcluster.lists)
 
+  
         assigned_labels.append(I)
         if args.verbose:
             print(f'Sizes of clusters: {", ".join([str((torch.tensor(I) == i).sum().item()) for i in range(args.nmb_cluster)])}\n')
@@ -209,6 +218,7 @@ def train(loader, model, crit, opt, epoch, device):
         model.top_layer.parameters(),
         lr=args.lr,
         weight_decay=args.wd,
+        momentum=args.momentum,
     )
 
     for i, (input_tensor, target) in enumerate(loader):

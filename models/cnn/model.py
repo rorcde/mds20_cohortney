@@ -32,7 +32,7 @@ class SeqCNN(pl.LightningModule):
         out = self.encoder(x)
         out = self.classifier(out)
         if self.top_layer is not None:
-            out = self.top_layer(F.relu(out))
+            out = self.top_layer(out)
         return out
 
     def training_step(self, batch, batch_idx):
@@ -66,16 +66,22 @@ class Encoder(pl.LightningModule):
         self.in_channels = in_channels
         self.encoder_conv = nn.Sequential(
                 nn.Conv1d(in_channels=in_channels, out_channels=512, kernel_size = 3, stride = 2, padding = 1),
+                #nn.ReLU(),
                 nn.BatchNorm1d(512),
                 nn.Conv1d(in_channels=512, out_channels=256, kernel_size = 3, stride = 2, padding = 1),
+                #nn.ReLU(),
                 nn.BatchNorm1d(256),
                 nn.Conv1d(in_channels=256, out_channels=128, kernel_size = 3, stride = 2, padding = 1),
+                #nn.ReLU(),
                 nn.BatchNorm1d(128),
                 nn.Conv1d(in_channels=128, out_channels=64, kernel_size = 3, stride = 2, padding = 1),
+                #nn.ReLU(),
                 nn.BatchNorm1d(64),
                 nn.Conv1d(in_channels=64, out_channels=32, kernel_size = 3, stride = 2, padding = 1),
+                #nn.ReLU(),
                 nn.BatchNorm1d(32),
-                nn.Conv1d(in_channels=32, out_channels=16, kernel_size = 3, stride = 2, padding = 1)
+                nn.Conv1d(in_channels=32, out_channels=16, kernel_size = 3, stride = 2, padding = 1),
+                #nn.ReLU(),
                 )
 
     def forward(self, x):
