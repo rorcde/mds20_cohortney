@@ -18,50 +18,6 @@ from tqdm import tqdm, trange
 
 
 
-def load_data(path, range_start, range_stop, maxlen=-1):
-    s = []
-    classes = set()
-    for i in range(range_start, range_stop): # 300 - all datasets
-        path_ = Path(path, f'{i}.txt')
-        with path_.open('r') as f:
-            df = pd.read_csv(f)
-        classes = classes.union(set(df['event'].unique()))
-        df['time'] = pd.to_datetime(df['time'])
-        df['time'] = (df['time'] - df['time'][0]) / np.timedelta64(1,'D')
-        if maxlen > 0:
-            df = df.iloc[:maxlen]
-        df = df.drop(['id', 'option1'], axis=1)
-        s.append(df)
-
-    classes = list(classes)
-    class2idx = {clas: idx for idx, clas in enumerate(classes)}
-
-    ss, Ts = [], []
-    user_list = []
-    for i, df in enumerate(s):
-
-      user_dict = dict()
-      if s[i]['time'].to_numpy()[-1] < 0:
-             continue
-      s[i]['event'].replace(class2idx, inplace=True)
-      for  event_type in class2idx.values():
-          dat = s[i][s[i]['event'] == event_type]
-          user_dict[event_type] = dat['time'].to_numpy()
-      user_list.append(user_dict)
-
-
-      st = np.vstack([s[i]['time'].to_numpy(), s[i]['event'].to_numpy()])
-      tens = torch.FloatTensor(st.astype(np.float32)).T
-
-      if maxlen > 0:
-          tens = tens[:maxlen]
-      ss.append(tens)
-      Ts.append(tens[-1, 0])
-
-    Ts = torch.FloatTensor(Ts)
-
-    return ss, Ts, class2idx, user_list
-
 def dict_to_pk(dict):
   pk = []
   for ss in dict.values():
@@ -98,6 +54,8 @@ def multiclass_fws_array(user_dict, time_partition):
 def fws_numerical_array(p, array):
   fws_array = []
   for i in range(1, len(array)):
+    # if type(p) == dict:
+    #       p = dict_to_pk(p)
     fws_array.append(fws(p, array[i-1], array[i]))
   # fws_array = tuple(fws_array)
   return fws_array
@@ -115,7 +73,7 @@ def computing_cohortney(grid, events, fws_func):
       for p_k in events:
         hs = ""
         fws_val =  fws_func(p_k, Delta_T)
-        fws_val = hs.join([str(el) for el in fws_val])
+        fws_val = hs.join([str(el) for el in  list(np.array(fws_val).reshape(1,-1).squeeze())])
        
         triplet = (int(T_j), Delta_T, fws_val)
         if type(p_k) == dict:
@@ -153,7 +111,7 @@ def new_triplets_for_seq(boarder_time, new_seq, fws_func, n):
       Delta_T = tuple(Delta_T)
       hs = ""
       fws_val =  fws_func(p_k, Delta_T)
-      fws_val = hs.join([str(el) for el in fws_val])
+      fws_val = hs.join([str(el) for el in list(np.array(fws_val).reshape(1,-1).squeeze())])
        
       triplet = (int(t), Delta_T, fws_val)
 
@@ -264,6 +222,4 @@ def events_tensor(events_fws):
   if len(full_tensor_batch.shape) == 4:
     full_tensor_batch = full_tensor_batch.squeeze(axis=1)
   return full_tensor_batch
-
-
 
