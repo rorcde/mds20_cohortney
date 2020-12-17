@@ -4,5 +4,3 @@ sklearn
 torch
 tick
 pytorch_lightning
-# faiss-cpu
-# faiss-gpu
