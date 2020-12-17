@@ -54,7 +54,7 @@ The code organization structure:
 
 ### Usage
 
-#### DeepCluster over Cohortney
+#### Deep Clustering over Cohortney
 
 run on synthetic dataset:
 
@@ -62,13 +62,13 @@ run on synthetic dataset:
 python src/DeepCluster/main.py \
     --data_dir data/simulated_Hawkes/K3_C1 \ 
     --verbose \
-    --epochs 10 \ 
+    --epochs 30 \ 
     --nruns 3 \
     --not_datetime \
     --ext csv \ 
     --batch 128 \ 
     --nmb_cluster 3 \
-    --n 7
+    --n 8
 ```
 
 run on IPTV dataset:
@@ -77,12 +77,12 @@ run on IPTV dataset:
 python src/DeepCluster/main.py \
     --data_dir data/IPTV_Data \
     --verbose \ 
-    --epochs 10 \ 
+    --epochs 30 \ 
     --nruns 3 \
     --ext txt \ 
     --batch 128 \ 
     --nmb_cluster 10 \
-    --n 7
+    --n 8
  ```
 
 more examples can be found in src/DeepCluster/test_deep_cluster.ipynb
@@ -90,3 +90,7 @@ more examples can be found in src/DeepCluster/test_deep_cluster.ipynb
 #### Dirichlet Mixture Model of Hawkes Processes
 
 examples of usage DMMHP can be found in src/DMHP/hp_test.ipynb
+
+#### Convolutional Autoencoder Clustering over Cohortney
+
+examples of usage DMMHP can be found in src/Cohortney/AE_work_check.ipynb
