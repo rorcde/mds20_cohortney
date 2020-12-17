@@ -93,4 +93,8 @@ examples of usage DMMHP can be found in src/DMHP/hp_test.ipynb
 
 #### Convolutional Autoencoder Clustering over Cohortney
 
-examples of usage DMMHP can be found in src/Cohortney/AE_work_check.ipynb
+examples of usage can be found in src/Cohortney/test_CAE.ipynb
+
+#### Optimal Transport for Clustering over Cohortney
+
+example of usage can be found in src/optimal_transport/test_op.ipynb

@@ -1,12 +1,9 @@
-import os,sys,inspect
-currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-parentdir = os.path.dirname(currentdir)
-sys.path.insert(0,parentdir) 
-
-from optimal_transport.sk import sinkhorn, get_labels
 import numpy as np
-from DMHP.metrics import purity
 import torch
+
+from DMHP.metrics import purity
+from sk import sinkhorn, get_labels
+
 
 class Trainer:
     def __init__(self, model, optimizer, criterion, device,\

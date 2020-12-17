@@ -31,7 +31,7 @@ def parse_arguments():
     parser.add_argument('--data_dir', type=str, required=True, help='dir holding sequences as separate files')
     parser.add_argument('--maxsize', type=int, default=None, help='max number of sequences')
     parser.add_argument('--nmb_cluster', type=int, default=10, help='number of clusters')
-    parser.add_argument('--maxlen', type=int, default=3000, help='maximum length of sequence')
+    parser.add_argument('--maxlen', type=int, default=-1, help='maximum length of sequence')
     parser.add_argument('--ext', type=str, default='txt', help='extention of files with sequences')
     parser.add_argument('--not_datetime', action='store_true', help='if time values in event sequences are represented in datetime format')
     # hyperparameters for Cohortney
@@ -161,14 +161,6 @@ def main(args):
                 except IndexError:
                     pass
                 print('####################### \n')
-            # # save running checkpoint
-            # torch.save({'epoch': epoch + 1,
-            #             'arch': args.arch,
-            #             'state_dict': model.state_dict(),
-            #             'optimizer' : optimizer.state_dict()},
-            #            os.path.join(args.exp, 'checkpoint.pth.tar'))
-
-            # save cluster assignments
             cluster_log.append(deepcluster.lists)
 
   
@@ -198,7 +190,6 @@ def main(args):
         json.dump(results, Path(f'{args.result_path}.json'))
 
     
-
 def train(loader, model, crit, opt, epoch, device):
     """Training of the CNN.
         Args:
@@ -221,22 +212,8 @@ def train(loader, model, crit, opt, epoch, device):
         momentum=args.momentum,
     )
 
+    print(len(loader))
     for i, (input_tensor, target) in enumerate(loader):
-        # save checkpoint
-        # n = len(loader) * epoch + i
-        # if n % args.checkpoints == 0:
-        #     path = os.path.join(
-        #         args.exp,
-        #         'checkpoints',
-        #         'checkpoint_' + str(n / args.checkpoints) + '.pth.tar',
-        #     )
-        #     torch.save({
-        #         'epoch': epoch + 1,
-        #         'arch': args.arch,
-        #         'state_dict': model.state_dict(),
-        #         'optimizer' : opt.state_dict()
-        #     }, path)
-
         target = target.to(device)
         input_tensor = input_tensor.to(device)
 
