@@ -77,9 +77,19 @@ class Trainer:
             self.optimizer.step()
     
     def train(self):
+        if type(self.gt):
+            max_purity = 0
+        else:
+            max_purity = None
+        best_sl = None
         for epoch in range(self.max_epochs):
             self.train_epoch(epoch)
+            self.model.eval()
             if type(self.gt):
-                res = purity(get_labels(self.model(self.X).T), self.gt)
+                sl = get_labels(self.model(self.X).T)
+                res = purity(sl, self.gt)
+                if res>max_purity:
+                    max_purity = res
+                    best_sl = sl
                 print("On epoch {} purity: {}".format(epoch, res))
-            
+        return best_sl, max_purity

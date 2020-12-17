@@ -7,14 +7,14 @@ from dataPreprocessing.cohortney import load_data, arr_func, multiclass_fws_arra
 
 import torch
 
-def get_features(path, ext, datetime, gamma= 1.04, n_gamma_steps = 5, n_partitions = 5, verbose = True):
+def get_features(path, ext, datetime, gamma= 1.04, n_gamma_steps = 5, min_partition = 0, n_partitions = 5, verbose = True):
     ss, Ts, class2idx, user_list = load_data(path, ext = ext, datetime = datetime)
     T_h = max(Ts)
     X = []
     steps = []
     for i in range(n_gamma_steps-1, -1, -1):
         T_j = T_h/gamma**i
-        for j in range(n_partitions):
+        for j in range(min_partition, n_partitions):
             if verbose:
                 print(n_gamma_steps-1 - i, j)
             delta_T = torch.range(0, T_j, T_j/2**j)
