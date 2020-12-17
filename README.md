@@ -45,7 +45,6 @@ pip install -e .
 python setup.py install
 ```
 
-The code organization structure:
 
 ### Usage
 
