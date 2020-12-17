@@ -17,16 +17,16 @@ Datasets:
 3. [Setup](#setup)
 4. [Usage](#usage)
 
-### Repository structure
+## Repository structure
 
 
-### Installation
+## Installation
 
 ```bat
 git clone https://github.com/rodrigorivera/mds20_cohortney
 ```
 
-### Setup
+## Setup
 
 
 ```bat
@@ -54,9 +54,9 @@ python setup.py install
 ```
 
 
-### Usage
+## Usage
 
-#### Deep Clustering over Cohortney
+### Deep Clustering over Cohortney
 
 run on synthetic dataset:
 
@@ -89,14 +89,18 @@ python src/DeepCluster/main.py \
 
 more examples can be found in src/DeepCluster/test_deep_cluster.ipynb
 
-#### Dirichlet Mixture Model of Hawkes Processes
+### Dirichlet Mixture Model of Hawkes Processes
 
 examples of usage DMMHP can be found in src/DMHP/hp_test.ipynb
 
-#### Convolutional Autoencoder Clustering over Cohortney
+### Convolutional Autoencoder Clustering over Cohortney
 
-examples of usage can be found in src/Cohortney/test_CAE.ipynb
+examples of usage can be found in src/CAE/test_CAE.ipynb
 
-#### Optimal Transport for Clustering over Cohortney
+### Optimal Transport for Clustering over Cohortney
 
 example of usage can be found in src/optimal_transport/test_op.ipynb
+
+### Original Cohortney
+
+examples of usage can be found in src/Cohortney/pure_cohortney.ipynb
