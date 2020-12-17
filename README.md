@@ -10,7 +10,15 @@ Event Sequence Clustering](https://arxiv.org/pdf/1701.09177.pdf)
 Datasets:
 - IPTV dataset
 - Synthetic Hawkes processes
-- other datasets from the PointProcesses.com
+
+# Table of Contents
+1. [Repository structure](#rep_str) 
+2. [Installation](#inst)
+3. [Setup](#setup)
+4. [Usage](#usage)
+
+### Repository structure
+
 
 ### Installation
 
