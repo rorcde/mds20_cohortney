@@ -3,4 +3,8 @@ pandas
 sklearn
 torch
 tick
+<<<<<<< HEAD
 pytorch_lightning
+=======
+pytorch_lightning
+>>>>>>> 1cdf6e6df2edb49f3e2bdb1f97182e81a9626f2c
