@@ -12,47 +12,51 @@ from tqdm import tqdm, trange
 
 
 def dict_to_pk(dict):
-    pk = []
-    for ss in dict.values():
-        pk.extend(ss)
-    return pk
+  pk = []
+  for ss in dict.values():
+    pk.extend(ss)
+  return pk
 
 
 #transforming data to the array taking into account an event type
 def sep_hawkes_proc(user_list, event_type):
-    sep_seqs = []
-    for user_dict in user_list:
-        sep_seqs.append(np.array(user_dict[event_type], dtype = np.float32))
+  sep_seqs = []
+  for user_dict in user_list:
+    sep_seqs.append(np.array(user_dict[event_type], dtype = np.float32))
 
-    return sep_seqs
+  return sep_seqs
 
 
 #transforming data to the tensor without putting attention at event type
 def hawkes_process_wo_event_types(ss):
-    sep_seqs = torch.tensor([],dtype=torch.float32)
-    for i in range(len(ss)):
-        sep_seqs = torch.cat((sep_seqs, torch.unsqueeze(ss[i].T[0],0)), 0)
-    return sep_seqs
+  sep_seqs = torch.tensor([],dtype=torch.float32)
+  for i in range(len(ss)):
+
+      sep_seqs = torch.cat((sep_seqs, torch.unsqueeze(ss[i].T[0],0)), 0)
+  return sep_seqs
 
 
 def fws(p, t1, t2):
-    n = sum(list(map(int, (p >= t1) & (p <= t2))))
-    return min(int(np.log2(n+1)), 9)
+  n = sum(list(map(int, (p >= t1) & (p <= t2))))
+  return min(int(np.log2(n+1)), 9)
 
 
 def multiclass_fws_array(user_dict, time_partition):
-    fws = []
-    for event, subseq in user_dict.items():
-        arr = fws_numerical_array(subseq, time_partition)
-        fws.append(arr)
-    return fws
+  fws = []
+  for event, subseq in user_dict.items():
+    arr = fws_numerical_array(subseq, time_partition)
+    fws.append(arr)
+  return fws
 
 
 def fws_numerical_array(p, array):
-    fws_array = []
-    for i in range(1, len(array)):
-        fws_array.append(fws(p, array[i-1], array[i]))
-    return fws_array
+  fws_array = []
+  for i in range(1, len(array)):
+    # if type(p) == dict:
+    #       p = dict_to_pk(p)
+    fws_array.append(fws(p, array[i-1], array[i]))
+  # fws_array = tuple(fws_array)
+  return fws_array
 
 
 def computing_cohortney(grid, events, fws_func, n):
@@ -87,7 +91,6 @@ def computing_cohortney(grid, events, fws_func, n):
 
   return events_clusters, events_triplets
 
-
 #dropping clusters with less then N sequences in it
 def optimalClusters(events_clusters, N):
   optimal_clusters = {}
@@ -96,10 +99,9 @@ def optimalClusters(events_clusters, N):
       optimal_clusters[k] = v
   return optimal_clusters
 
-
-def new_triplets_for_seq(boarder_time, new_seq, fws_func, n):
+def new_triplets_for_seq(boarder_time, new_seq, fws_func, n, grid):
   t = boarder_time
-  p_new = new_seq
+  p_k = new_seq
   grid_cut = grid[grid<t]
   p_new_triplets = []
   n = n
@@ -151,8 +153,8 @@ def looking_for_cluster(p_new_triplets, optimal_clusters, treshold ):
       print('found cluster ', triplet) #we have the exact match in triplets buncg
       nearest_cluster.append(triplet)
     elif triplet not in optimal_clusters.keys():
-      optimal_array = np.array(list(optimal_clusters.keys()))
-      triplet_array = np.array(triplet)
+      optimal_array = np.array(list(optimal_clusters.keys()),dtype=object)
+      triplet_array = np.array(triplet,dtype=object)
       #loook for triplets that have thr same time Tj and time partition
       triplets_to_check = optimal_array[list(map(bool, np.prod(optimal_array[:,:-1] ==triplet_array[:-1], axis =1)))]
 
@@ -182,7 +184,6 @@ def looking_for_cluster(p_new_triplets, optimal_clusters, treshold ):
 def arr_func(events, T_j, delta_T, fws_func):
   events_fws = dict()
   for p_k in events:
-    
     
     fws_val =  fws_func(p_k, delta_T)
     # fws_val = hs.join([str(el) for el in fws_val])
