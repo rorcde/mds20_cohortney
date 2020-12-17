@@ -12,11 +12,6 @@ Datasets:
 - Synthetic Hawkes processes
 - other datasets from the PointProcesses.com
 
-Tools:
-- Pytorch lighting
-- TQDM
-- Pydata stack library
-
 ### Installation
 
 ```bat
@@ -50,7 +45,6 @@ pip install -e .
 python setup.py install
 ```
 
-The code organization structure:
 
 ### Usage
 
