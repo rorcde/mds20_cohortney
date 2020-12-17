@@ -9,11 +9,13 @@ from sklearn.metrics.cluster import normalized_mutual_info_score
 from pathlib import Path
 import itertools
 import pandas as pd
+import json
 
 from models.cnn.model import SeqCNN
 import clustering
 from src.Cohortney.data_utils import load_data, sep_hawkes_proc
-from src.Cohortney.utils import *
+from src.Cohortney.utils import make_grid
+from src.Cohortney.cohortney import arr_func, multiclass_fws_array, events_tensor
 from src.DMHP.metrics import purity, consistency
 
 
@@ -26,28 +28,33 @@ def random_seed(seed):
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--data_dir', type=str, required=True)
-    parser.add_argument('--maxsize', type=int, default=None)
-    parser.add_argument('--nmb_cluster', type=int, default=10)
-    parser.add_argument('--maxlen', type=int, default=3000)
-    parser.add_argument('--ext', type=str, default='txt')
-    parser.add_argument('--not_datetime', action='store_true')
+    parser.add_argument('--data_dir', type=str, required=True, help='dir holding sequences as separate files')
+    parser.add_argument('--maxsize', type=int, default=None, help='max number of sequences')
+    parser.add_argument('--nmb_cluster', type=int, default=10, help='number of clusters')
+    parser.add_argument('--maxlen', type=int, default=3000, help='maximum length of sequence')
+    parser.add_argument('--ext', type=str, default='txt', help='extention of files with sequences')
+    parser.add_argument('--not_datetime', action='store_true', help='if time values in event sequences are represented in datetime format')
+    # hyperparameters for Cohortney
     parser.add_argument('--gamma', type=float, default=1.4)
     parser.add_argument('--Tb', type=float, default=7e-6)
     parser.add_argument('--Th', type=float, default=80)
-    parser.add_argument('--N', type=int, default=1500)
-    parser.add_argument('--n', type=int, default=4)
+    parser.add_argument('--N', type=int, default=2500)
+    parser.add_argument('--n', type=int, default=4, help='n for partition')
+    # hyperparameters for training
     parser.add_argument('--start_epoch', type=int, default=0)
     parser.add_argument('--epochs', type=int, default=10)
     parser.add_argument('--batch', type=int, default=32)
     parser.add_argument('--lr', type=float, default=1e-3)
     parser.add_argument('--momentum', type=float, default=0.9)
-    parser.add_argument('--wd', type=float, default=1e-3)
+    parser.add_argument('--wd', type=float, default=1e-4)
+
     parser.add_argument('--seed', type=int)
-    parser.add_argument('--workers', type=int, default=4)
+    parser.add_argument('--workers', type=int, default=4, help='number of workers for dataloader')
     parser.add_argument('--device', type=str, default='cpu')
     parser.add_argument('--verbose', action='store_true')
-    parser.add_argument('--nruns', type=int, default=1)
+    parser.add_argument('--nruns', type=int, default=1, help='number of trials')
+
+    parser.add_argument('--result_path', type=str, help='path to save results')
     args = parser.parse_args()
     return args
 
@@ -56,29 +63,25 @@ def main(args):
     device = torch.device(args.device if torch.cuda.is_available() else 'cpu')
     ss, _, class2idx, user_list = load_data(Path(args.data_dir), maxsize=args.maxsize, maxlen=args.maxlen, ext=args.ext, datetime=not args.not_datetime)
     
-    #weird
-    events = itertools.chain.from_iterable([sep_hawkes_proc(user_list, i) for i in range(len(class2idx))])
-    #events = list(itertools.chain.from_iterable(zip(*[sep_hawkes_proc(user_list, i) for i in range(len(class2idx))])))
     grid = make_grid(args.gamma, args.Tb, args.Th, args.N, args.n)
-
     T_j = grid[-1]
     Delta_T = np.linspace(0, grid[-1], 2**args.n)
     Delta_T = Delta_T[Delta_T< int(T_j)]
     Delta_T = tuple(Delta_T)
 
-    array, _ = arr_func(events, T_j, Delta_T)
+    _, events_fws_mc = arr_func(user_list, T_j, Delta_T, multiclass_fws_array)
+    mc_batch = events_tensor(events_fws_mc)
+    dataset = torch.FloatTensor(mc_batch)
 
-    #dataset = Dataset(array)
-    dataset = torch.FloatTensor(array) #.reshape(len(ss), len(class2idx), -1)  # for x in array]
     if args.verbose:
         print('Loaded data')
-        print(dataset.shape)
-    input_size = dataset[0].shape[0]
+        print(f'Dataset shape: {list(dataset.shape)}')
+    input_size = dataset.shape[-1]
 
     assigned_labels = []
     for run_id in range(args.nruns):
         print(f'============= RUN {run_id+1} ===============')
-        in_channels = 1 #len(class2idx))
+        in_channels = len(class2idx)
         model = SeqCNN(input_size, in_channels, device=device)
         model.top_layer = None
         model.to(device)
@@ -92,7 +95,7 @@ def main(args):
         criterion = nn.CrossEntropyLoss()
 
         dataloader = torch.utils.data.DataLoader(dataset, 
-                                                #collate_fn=pad_collate1,
+                                                shuffle=False,
                                                 batch_size=args.batch,
                                                 num_workers=args.workers,
                                                 pin_memory=True)
@@ -114,23 +117,25 @@ def main(args):
                 print('Cluster the features')
             clustering_loss, I = deepcluster.cluster(features, verbose=args.verbose)
 
+            if Path(args.data_dir, 'clusters.csv').exists() and args.verbose:
+                gt_labels = pd.read_csv(Path(args.data_dir, 'clusters.csv'))['cluster_id'].to_numpy()
+                gt_labels = torch.LongTensor(gt_labels)
+                
+                pur = purity(torch.LongTensor(I), gt_labels)
+                if args.verbose:
+                    print(f'Purity: {pur:.4f}')
+
             # assign pseudo-labels
             if args.verbose:
                 print('Assign pseudo labels')
             train_dataset = clustering.cluster_assign(deepcluster.lists,
                                                     dataset)
 
-            # uniformly sample per target
-            # sampler = UnifLabelSampler(int(args.reassign * len(train_dataset)),
-            #                            deepcluster.lists)
-
             train_dataloader = torch.utils.data.DataLoader(
                 train_dataset,
                 shuffle=True,
-            #    collate_fn=pad_collate2,
                 batch_size=args.batch,
                 num_workers=args.workers,
-            #    sampler=sampler,
                 pin_memory=True,
             )
 
@@ -166,6 +171,7 @@ def main(args):
             # save cluster assignments
             cluster_log.append(deepcluster.lists)
 
+  
         assigned_labels.append(I)
         if args.verbose:
             print(f'Sizes of clusters: {", ".join([str((torch.tensor(I) == i).sum().item()) for i in range(args.nmb_cluster)])}\n')
@@ -174,6 +180,8 @@ def main(args):
     
     if args.verbose:
         print(f'Consistency: {cons}\n')
+
+    results = {'consistency': cons}
 
     if Path(args.data_dir, 'clusters.csv').exists():
         gt_labels = pd.read_csv(Path(args.data_dir, 'clusters.csv'))['cluster_id'].to_numpy()
@@ -184,8 +192,12 @@ def main(args):
 
         print(f'Purity: {pur_val_mean}+-{pur_val_std}')
 
-    return
+        results['purity'] = (pur_val_mean, pur_val_std)
 
+    if args.result_path is not None:
+        json.dump(results, Path(f'{args.result_path}.json'))
+
+    
 
 def train(loader, model, crit, opt, epoch, device):
     """Training of the CNN.
@@ -206,6 +218,7 @@ def train(loader, model, crit, opt, epoch, device):
         model.top_layer.parameters(),
         lr=args.lr,
         weight_decay=args.wd,
+        momentum=args.momentum,
     )
 
     for i, (input_tensor, target) in enumerate(loader):

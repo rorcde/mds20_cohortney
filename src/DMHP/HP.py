@@ -44,7 +44,7 @@ class PointProcessStorage:
         for n in range(len(self.seqs)):
             cs, ts = self.seqs[n][:, 1], self.seqs[n][:, 0]
             Tn = self.Tns[n]
-            assert Tn > ts[-1]
+            assert Tn >= ts[-1]
             yield cs.long(), ts.float(), Tn
 
 
