@@ -115,7 +115,6 @@ git clone https://github.com/rodrigorivera/mds20_cohortney
 
 ## Setup
 
-
 ```bat
 cd [VENV]
 
@@ -138,8 +137,22 @@ pip install -e .
 
 ```bat
 python setup.py install
-```
+``` 
 Correctly installed dependencies are needed for running Deep Clustering
+
+
+
+to run in the Google Colaboratory run the following:
+
+```python
+import sys
+sys.path.append('mds20_cohortney')
+```
+
+```bat
+pip intall -r requirements.txt
+pip install -e mds20_cohortney
+```
 
 
 ## Usage
