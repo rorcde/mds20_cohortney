@@ -83,7 +83,6 @@ The structure of `src` dir contains differnt components of the project:
 ├── DeepCluster
 │   ├── __init__.py
 │   ├── clustering.py
-│   ├── data_utils.py
 │   ├── main.py
 │   ├── README.md
 │   └── test_deep_cluster.ipynb
