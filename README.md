@@ -150,13 +150,13 @@ run on synthetic dataset:
 
 ```bat
 python src/DeepCluster/main.py \
-    --data_dir data/simulated_Hawkes/K3_C1 \ 
+    --data_dir data/simulated_Hawkes/K3_C1 \
     --verbose \
-    --epochs 30 \ 
+    --epochs 30 \
     --nruns 3 \
     --not_datetime \
-    --ext csv \ 
-    --batch 128 \ 
+    --ext csv \
+    --batch 128 \
     --nmb_cluster 3 \
     --n 8
 ```
@@ -166,11 +166,11 @@ run on IPTV dataset:
 ```bat
 python src/DeepCluster/main.py \
     --data_dir data/IPTV_Data \
-    --verbose \ 
-    --epochs 30 \ 
+    --verbose \
+    --epochs 30 \
     --nruns 3 \
-    --ext txt \ 
-    --batch 128 \ 
+    --ext txt \
+    --batch 128 \
     --nmb_cluster 10 \
     --n 8
  ```
