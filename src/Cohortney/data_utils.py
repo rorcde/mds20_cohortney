@@ -7,7 +7,7 @@ import re
 import pandas as pd
 
 
-def load_data(data_dir, maxsize=None, maxlen=-1, ext='txt', datetime=True):
+def load_data(data_dir, maxsize=None, maxlen=-1, ext='txt', datetime=True, type_=None):
     """
     Loads the sequences saved in the given directory.
 
@@ -36,11 +36,21 @@ def load_data(data_dir, maxsize=None, maxlen=-1, ext='txt', datetime=True):
                 nb_files += 1
             else:
                 break
+            
+            time_col = 'time'
+            event_col = 'event'
+            if type_ == 'booking1':
+                time_col = 'checkin'
+                event_col = 'city_id'
+            elif type_ == 'booking2':
+                time_col = 'checkout'
+                event_col = 'city_id'
+                            
             df = pd.read_csv(Path(data_dir, file))
-            classes = classes.union(set(df['event'].unique()))
+            classes = classes.union(set(df[event_col].unique()))
             if datetime:
-                df['time'] = pd.to_datetime(df['time'])
-                df['time'] = (df['time'] - df['time'][0]) / np.timedelta64(1,'D')
+                df[time_col] = pd.to_datetime(df[time_col])
+                df[time_col] = (df[time_col] - df[time_col][0]) / np.timedelta64(1,'D')
             if maxlen > 0:
                 df = df.iloc[:maxlen]
 
@@ -53,16 +63,16 @@ def load_data(data_dir, maxsize=None, maxlen=-1, ext='txt', datetime=True):
     user_list = []
     for i, df in enumerate(s):
       user_dict = dict()
-      if s[i]['time'].to_numpy()[-1] < 0:
+      if s[i][time_col].to_numpy()[-1] < 0:
              continue
-      s[i]['event'].replace(class2idx, inplace=True)
+      s[i][event_col].replace(class2idx, inplace=True)
       for  event_type in class2idx.values():
-          dat = s[i][s[i]['event'] == event_type]
-          user_dict[event_type] = dat['time'].to_numpy()
+          dat = s[i][s[i][event_col] == event_type]
+          user_dict[event_type] = dat[time_col].to_numpy()
       user_list.append(user_dict)
 
 
-      st = np.vstack([s[i]['time'].to_numpy(), s[i]['event'].to_numpy()])
+      st = np.vstack([s[i][time_col].to_numpy(), s[i][event_col].to_numpy()])
       tens = torch.FloatTensor(st.astype(np.float32)).T
       
       if maxlen > 0:
@@ -72,8 +82,7 @@ def load_data(data_dir, maxsize=None, maxlen=-1, ext='txt', datetime=True):
 
     Ts = torch.FloatTensor(Ts)
 
-    return ss, Ts, class2idx, user_list 
-
+    return ss, Ts, class2idx, user_list
 
 #transforming data to the array taking into account an event type
 def sep_hawkes_proc(user_list, event_type):

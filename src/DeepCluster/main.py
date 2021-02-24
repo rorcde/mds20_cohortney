@@ -12,7 +12,7 @@ import pandas as pd
 import json
 
 from models.cnn.model import SeqCNN
-import clustering
+import src.DeepCluster.clustering as clustering
 from src.Cohortney.data_utils import load_data, sep_hawkes_proc
 from src.Cohortney.utils import make_grid
 from src.Cohortney.cohortney import arr_func, multiclass_fws_array, events_tensor
@@ -53,15 +53,19 @@ def parse_arguments():
     parser.add_argument('--device', type=str, default='cpu')
     parser.add_argument('--verbose', action='store_true')
     parser.add_argument('--nruns', type=int, default=1, help='number of trials')
+    parser.add_argument('--type', type=str, default=None, help='if it is booking data or not')
 
     parser.add_argument('--result_path', type=str, help='path to save results')
     args = parser.parse_args()
     return args
 
+np.set_printoptions(threshold=10000)
+torch.set_printoptions(threshold=10000)
 
 def main(args):
     device = torch.device(args.device if torch.cuda.is_available() else 'cpu')
-    ss, _, class2idx, user_list = load_data(Path(args.data_dir), maxsize=args.maxsize, maxlen=args.maxlen, ext=args.ext, datetime=not args.not_datetime)
+    device = torch.device('cpu') # remove it!
+    ss, _, class2idx, user_list = load_data(Path(args.data_dir), maxsize=args.maxsize, maxlen=args.maxlen, ext=args.ext, datetime=not args.not_datetime, type_=args.type)
     
     grid = make_grid(args.gamma, args.Tb, args.Th, args.N, args.n)
     T_j = grid[-1]
@@ -163,13 +167,13 @@ def main(args):
                 print('####################### \n')
             cluster_log.append(deepcluster.lists)
 
-  
         assigned_labels.append(I)
         if args.verbose:
             print(f'Sizes of clusters: {", ".join([str((torch.tensor(I) == i).sum().item()) for i in range(args.nmb_cluster)])}\n')
     assigned_labels = torch.LongTensor(assigned_labels)
     cons = consistency(assigned_labels)
     
+    print (assigned_labels)
     if args.verbose:
         print(f'Consistency: {cons}\n')
 
@@ -182,7 +186,7 @@ def main(args):
         pur_val_mean = np.mean([purity(x, gt_labels) for x in assigned_labels])
         pur_val_std = np.std([purity(x, gt_labels) for x in assigned_labels])
 
-        print(f'Purity: {pur_val_mean}+-{pur_val_std}')
+        print(f'\nPurity: {pur_val_mean}+-{pur_val_std}')
 
         results['purity'] = (pur_val_mean, pur_val_std)
 
@@ -212,7 +216,6 @@ def train(loader, model, crit, opt, epoch, device):
         momentum=args.momentum,
     )
 
-    print(len(loader))
     for i, (input_tensor, target) in enumerate(loader):
         target = target.to(device)
         input_tensor = input_tensor.to(device)

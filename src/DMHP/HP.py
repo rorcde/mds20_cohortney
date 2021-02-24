@@ -10,11 +10,38 @@ from tqdm import tqdm, trange
 from typing import List
 from torch.nn import functional as F
 import random
+import scipy.integrate as integrate
 
 
-def tune_basis_fn():
-    # TBD
-    return NotImplementedError
+def tune_basis_fn(ss, eps=1e5, not_tune=False):
+    if not not_tune:
+        w0_arr = np.linspace(0, 15, 1000) # 15
+
+        all_seq = torch.cat(tuple(ss))
+        T = torch.max(all_seq[:, 0]).item()
+        N_events = np.sum([len(seq) for seq in ss])
+
+        h = ((4*torch.std(all_seq)**5) / (3*N_events))**0.2
+        const = N_events*np.sqrt(2*np.pi*h**2)
+        upper_bound = lambda w: const * np.exp(-(w**2*h**2)/2)
+        result = lambda w0: integrate.quad(upper_bound, w0, np.inf)
+
+        basis_fs = []
+        for w0 in w0_arr:
+            if result(w0)[0] <= eps:
+                M = int(np.ceil(T*w0/np.pi))
+                sigma = 1 / w0
+                basis_fs = [lambda t, m_=m: np.exp(-(t - (m_-1)*T/M)**2 / (2*sigma**2)) for m in range(1, M+1)]
+                break
+
+        print ('eps =', eps, 'w0 =', w0)
+        print ('D =', len(basis_fs))
+    
+    else:
+        D = 6
+        basis_fs = [lambda t: torch.exp(-t**2 / (2*k**2)) for k in range(D)]
+    
+    return basis_fs
 
 
 def integral(f, left, right, npts=10000):
@@ -31,7 +58,6 @@ class PointProcessStorage:
     Args:
     - seqs - list of realizations, where each item is a tensor of size (L, 2)
     - Tns - tensor of Tn for each realization (each event's timestamp lies in (0, Tn))
-    - basis_fs - list of basis functions, taking tensor as input
 
     """
     def __init__(self, seqs : List, Tns : torch.Tensor, basis_fs : List):
@@ -184,6 +210,7 @@ class EM_clustering:
             # nll1 = self.hp_nll(r.sum(0) / self.N, mu, A)
 
             r2 = self.e_step()
+            print ('e_step ready')
             mu2, A2 = self.m_step(r2, nin)
             nll2 = self.hp_nll(r2.sum(0) / self.N, mu2, A2)
 
@@ -278,6 +305,7 @@ class EM_clustering:
         var_mu = self.model.var_mu()
 
         for n, (c, _, Tn) in enumerate(self.hp):
+            print ('e_step:', n)
             g = self._get_g(n)
             e_A_g = (e_A[c.tolist(), c.tolist(), :, :] * g[:, :, :, None]).sum(2).permute(2, 0, 1) # K x L x L
             e_lambda = e_mu[c.tolist(), :].permute(1, 0) + e_A_g.sum(-1)

@@ -15,7 +15,6 @@ class LitAutoEncoder(pl.LightningModule):
         self.out = n_latent_features
         self.encoder = nn.Sequential(
                 nn.Conv1d(in_channels=in_channels, out_channels=512, kernel_size = 3),
-                nn.BatchNorm1d(512),
                 nn.Conv1d(in_channels=512, out_channels=256, kernel_size = 3),
                 nn.BatchNorm1d(256),
                 nn.Conv1d(in_channels=256, out_channels=128, kernel_size = 3),
@@ -38,8 +37,11 @@ class LitAutoEncoder(pl.LightningModule):
                 nn.BatchNorm1d(256), 
                 nn.ConvTranspose1d(in_channels=256, out_channels=512, kernel_size = 3),
                 nn.BatchNorm1d(512),
-                nn.ConvTranspose1d(in_channels=512, out_channels=in_channels, kernel_size = 3 ),
+                nn.ConvTranspose1d(in_channels=512, out_channels=in_channels, kernel_size = 3),
                 )
+        
+        self.train_index = 0
+        self.val_index = 0
 
 
     def forward(self, x):
@@ -53,7 +55,7 @@ class LitAutoEncoder(pl.LightningModule):
         loss =  torch.nn.MSELoss()(x_hat, x)
         self.log('train_loss', loss)
         return loss
-
+    
     def training_epoch_end(self, outputs):
         losses = torch.as_tensor([o['loss'] for o in outputs])
         self.log('avg_train_loss', losses.mean(), prog_bar=True)
@@ -82,4 +84,32 @@ class LitAutoEncoder(pl.LightningModule):
         }, prog_bar=True)
 
     def configure_optimizers(self):
-        return torch.optim.Adam(self.parameters(), lr=0.003)
+#         return torch.optim.Adam(self.parameters(), lr=0.003)
+        optimizer = torch.optim.Adam(self.parameters(), lr=0.003)
+    
+        def adjust_lr_K3_C5(epoch):
+            if epoch < 100:
+                return 0.003
+            if epoch >= 100 and epoch < 120:
+                return 0.0003
+            if epoch >= 120 and epoch < 150:
+                return 0.000003
+            if epoch >= 150 and epoch < 200:
+                return 0.0000003
+            else:
+                return 0.00000003
+            
+        def adjust_lr_K5_C5(epoch):
+            if epoch < 60:
+                return 0.003
+            if epoch >= 60 and epoch < 350:
+                return 0.0003
+            else:
+                return 0.00003
+            
+        lr_scheduler = {
+#             'scheduler': torch.optim.lr_scheduler.StepLR(optimizer, step_size=100, gamma=0.01),
+            'scheduler': torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=adjust_lr_K3_C5),
+            'name': 'lr schedule'
+        }
+        return [optimizer], [lr_scheduler]

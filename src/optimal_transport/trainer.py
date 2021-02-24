@@ -2,7 +2,7 @@ import numpy as np
 import torch
 
 from DMHP.metrics import purity
-from sk import sinkhorn, get_labels
+from src.optimal_transport.sk import sinkhorn, get_labels
 
 
 class Trainer:
@@ -56,6 +56,7 @@ class Trainer:
         indices = np.random.permutation(self.N)
         self.model.train()
         
+        losses = []
         for iteration, start in enumerate(range(0, self.N - self.batch_size, self.batch_size)):
             batch_ids = indices[start:start+self.batch_size]
             batch = [j[batch_ids].to(self.device) for j in self.X]
@@ -66,27 +67,31 @@ class Trainer:
                     _ = self.optimize_times.pop()
                     self.selflabels = get_labels(sinkhorn(torch.log(torch.softmax(self.model(self.X), dim = 0)).T/self.N,\
                                                           torch.ones(self.K)/self.K,\
-                                                          torch.ones(self.N)/self.N))
+                                                          torch.ones(self.N)/self.N, eps=1e-3))
             self.optimizer.zero_grad()
             out = self.model(batch)
             loss = self.criterion(out, self.selflabels[batch_ids])
+            losses.append(loss.item())
             loss.backward()
             self.optimizer.step()
+        print ('loss:', np.mean(losses))
     
     def train(self):
-        if type(self.gt):
+        if self.gt is not None:
             max_purity = 0
         else:
             max_purity = None
         best_sl = None
+        sls = []
         for epoch in range(self.max_epochs):
             self.train_epoch(epoch)
             self.model.eval()
-            if type(self.gt):
-                sl = get_labels(self.model(self.X).T)
+            sl = get_labels(self.model(self.X).T)
+            sls.append(sl)
+            if self.gt is not None:
                 res = purity(sl, self.gt)
-                if res>max_purity:
+                if res > max_purity:
                     max_purity = res
                     best_sl = sl
-                print("On epoch {} purity: {}".format(epoch, res))
-        return best_sl, max_purity
+#                 print("On epoch {} purity: {}".format(epoch, res))
+        return best_sl, max_purity, sls
