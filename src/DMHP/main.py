@@ -118,17 +118,47 @@ def main(args):
         
         if gt_ids is not None:
             print(f'Purity: {purity(labels[i], gt_ids):.4f}')
-        
+          
+            for k in range(1,K+1):
+                info_score[k, 0] = k-1
+                for j in range(1, K+1):
+                    info_score[0, j] = j-1
+                    ind = np.concatenate([np.argwhere(gt_ids == j-1), np.argwhere(gt_ids == k-1)], axis=1)[0]
+                    a = labels[i].tolist()
+                    b = gt_ids.tolist()
+                    info_score[k, j] += normalized_mutual_info_score([b[i] for i in ind], [a[i] for i in ind])/args.nruns
+        times[i] = time.clock() - time_start
     cons = consistency(assigned_labels)
 
     print(f'Consistency: {cons:.4f}\n')
     results['consistency'] = cons
-   
     if gt_ids is not None:
         pur_val_mean = np.mean([purity(x, gt_ids) for x in labels])
         pur_val_std = np.std([purity(x, gt_ids) for x in labels])
         print(f'Purity: {pur_val_mean:.4f}+-{pur_val_std:.4f}')
-    
+        print(f'Normalized mutual info score: {info_score}')
+    time_mean = np.mean(times)
+    time_std = np.std(times)
+    nll_mean = torch.mean(nlls)
+    nll_std = torch.std(nlls)
+    print(f'Mean run time: {time_mean:.4f}+-{time_std:.4f}')
+    if (args.save_to is not None) and (gt_ids is not None):
+        metrics = {
+            "Purity": f'{pur_val_mean:.4f}+-{pur_val_std:.4f}' ,
+            "Mean run time": f'{time_mean:.4f}+-{time_std:.4f}',
+            "Normalized mutual info score:": f'{info_score}',
+            "Predictive log likelihood:":f'{nll_mean.item():.4f}+-{nll_std.item():.4f}'
+        }
+        with open(Path(args.data_dir, args.save_to), "w") as f:
+            json.dump(metrics, f, indent=4)
+    else:
+                metrics = {
+            "Mean run time": f'{time_mean:.4f}+-{time_std:.4f}',
+            "Predictive log likelihood:":f'{nll_mean.item():.4f}+-{nll_std.item():.4f}'
+        }
+        with open(Path(args.data_dir, args.save_to), "w") as f:
+            json.dump(metrics, f, indent=4)
+            
 
 if __name__ == "__main__":
     args = parse_arguments()
