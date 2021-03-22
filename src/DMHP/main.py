@@ -7,11 +7,20 @@ import random
 import numpy as np
 from matplotlib import pyplot as plt
 from tqdm import tqdm, trange
+def random_seed(seed):
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(args.seed)
+    np.random.seed(args.seed)
+from HP import PointProcessStorage, DirichletMixtureModel, EM_clustering, tune_basis_fn
+from metrics import consistency, purity
+from data_utils import load_data
+import tarfile
+import pickle
+import sys
+import json
 
-from src.DMHP.HP import PointProcessStorage, DirichletMixtureModel, EM_clustering, tune_basis_fn
-from src.DMHP.metrics import consistency, purity
-from src.Cohortney.data_utils import load_data
-
+sys.path.append("..")
 
 def random_seed(seed):
     torch.manual_seed(seed)
@@ -58,7 +67,7 @@ torch.set_printoptions(threshold=10000)
 
 def main(args):
     device = torch.device(args.device if torch.cuda.is_available() else 'cpu')
-    ss, Ts, class2idx, _ = load_data(Path(args.data_dir), maxsize=args.maxsize, maxlen=args.maxlen, ext=args.ext, datetime=not args.not_datetime, type_=args.type)
+    ss, Ts, class2idx = load_data(Path(args.data_dir), maxsize=args.maxsize, maxlen=args.maxlen, ext=args.ext, datetime=not args.not_datetime, type_=args.type)
     
     gt_ids = None
     if Path(args.data_dir, 'clusters.csv').exists():
@@ -87,9 +96,10 @@ def main(args):
     K = args.nmb_cluster
 
     niter = 10
-
     labels = torch.zeros(args.nruns, len(ss))
+    info_score = np.zeros((K+1, K+1))
     nlls = torch.zeros(args.nruns, niter)
+    times = np.zeros(args.nruns)
 
     assigned_labels = []
     results = {}
@@ -152,7 +162,7 @@ def main(args):
         with open(Path(args.data_dir, args.save_to), "w") as f:
             json.dump(metrics, f, indent=4)
     else:
-                metrics = {
+        metrics = {
             "Mean run time": f'{time_mean:.4f}+-{time_std:.4f}',
             "Predictive log likelihood:":f'{nll_mean.item():.4f}+-{nll_std.item():.4f}'
         }
