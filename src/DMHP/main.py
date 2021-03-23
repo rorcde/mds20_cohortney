@@ -7,6 +7,8 @@ import random
 import numpy as np
 from matplotlib import pyplot as plt
 from tqdm import tqdm, trange
+import time
+from sklearn.metrics.cluster import normalized_mutual_info_score
 def random_seed(seed):
     torch.manual_seed(seed)
     if torch.cuda.is_available():
@@ -50,7 +52,7 @@ def parse_arguments():
     parser.add_argument('--lr', type=float, default=1e-3)
     parser.add_argument('--momentum', type=float, default=0.9)
     parser.add_argument('--wd', type=float, default=1e-4)
-
+    parser.add_argument('--save_to', type=str, default="DMHP_Metrics", help='directory for saving metrics')
     parser.add_argument('--seed', type=int)
     parser.add_argument('--workers', type=int, default=4, help='number of workers for dataloader')
     parser.add_argument('--device', type=str, default='cpu')
@@ -105,7 +107,7 @@ def main(args):
     results = {}
     for i in range(args.nruns):
         print(f'============= RUN {i+1} ===============')
-
+        time_start = time.clock()
         Sigma = torch.rand(C, C, D, K)
         B = torch.rand(C, K)
         alpha = 1.
@@ -164,7 +166,8 @@ def main(args):
     else:
         metrics = {
             "Mean run time": f'{time_mean:.4f}+-{time_std:.4f}',
-            "Predictive log likelihood:":f'{nll_mean.item():.4f}+-{nll_std.item():.4f}'
+            "Predictive log likelihood:":f'{nll_mean.item():.4f}+-{nll_std.item():.4f}',
+            "Predicted labels":f'{labels}'
         }
         with open(Path(args.data_dir, args.save_to), "w") as f:
             json.dump(metrics, f, indent=4)

@@ -53,8 +53,8 @@ def load_data(data_dir, maxsize=None, maxlen=-1, ext='txt', datetime=True, type_
                 df_data = pd.DataFrame(data=data)
                 classes = classes.union(set(df_data[event_col].unique()))
                 s.append(df_data)
-                print (f'Reading {i} out of {df.shape[0]}\n')
-    if ext == "cvs" or "txt":
+                print (f'Reading {i} \n')
+    if ext == "csv" or "txt":
         for file in sorted(os.listdir(data_dir), key=lambda x: int(re.sub(fr'.{ext}', '', x)) if re.sub(fr'.{ext}', '', x).isdigit() else 0):
             if file.endswith(f'.{ext}') and re.sub(fr'.{ext}', '', file).isnumeric():
                 if maxsize is None or nb_files <= maxsize:
@@ -83,22 +83,21 @@ def load_data(data_dir, maxsize=None, maxlen=-1, ext='txt', datetime=True, type_
 
     ss, Ts = [], []
     for i, df in enumerate(s):
-      user_dict = dict()
-      if s[i][time_col].to_numpy()[-1] < 0:
+        user_dict = dict()
+        if s[i][time_col].to_numpy()[-1] < 0:
              continue
     
-      s[i][event_col].replace(class2idx, inplace=True)
-      for event_type in class2idx.values():
-          dat = s[i][s[i][event_col] == event_type]
+        s[i][event_col].replace(class2idx, inplace=True)
+        for event_type in class2idx.values():
+            dat = s[i][s[i][event_col] == event_type]
  
-
-      st = np.vstack([s[i][time_col].to_numpy(), s[i][event_col].to_numpy()])
-      tens = torch.FloatTensor(st.astype(np.float32)).T
+        st = np.vstack([s[i][time_col].to_numpy(), s[i][event_col].to_numpy()])
+        tens = torch.FloatTensor(st.astype(np.float32)).T
       
-      if maxlen > 0:
-          tens = tens[:maxlen]
-      ss.append(tens)
-      Ts.append(tens[-1, 0])
+        if maxlen > 0:
+            tens = tens[:maxlen]
+        ss.append(tens)
+        Ts.append(tens[-1, 0])
     Ts = torch.FloatTensor(Ts)
     print ('Data processing completed')
     return ss, Ts, class2idx
