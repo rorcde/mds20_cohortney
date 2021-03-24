@@ -36,7 +36,7 @@ def parse_arguments():
     parser.add_argument('--data_dir', type=str, required=True, help='dir holding sequences as separate files')
     parser.add_argument('--maxsize', type=int, default=None, help='max number of sequences')
     parser.add_argument('--nmb_cluster', type=int, default=10, help='number of clusters')
-    parser.add_argument('--maxlen', type=int, default=-1, help='maximum length of sequence')
+    parser.add_argument('--maxlen', type=int, default=500, help='maximum length of sequence')
     parser.add_argument('--ext', type=str, default='txt', help='extention of files with sequences')
     parser.add_argument('--not_datetime', action='store_true', help='if time values in event sequences are represented in datetime format')
     # hyperparameters for Cohortney
@@ -44,20 +44,20 @@ def parse_arguments():
     parser.add_argument('--Tb', type=float, default=7e-6)
     parser.add_argument('--Th', type=float, default=80)
     parser.add_argument('--N', type=int, default=2500)
-    parser.add_argument('--n', type=int, default=4, help='n for partition')
+    parser.add_argument('--n', type=int, default=8, help='n for partition')
     # hyperparameters for training
     parser.add_argument('--start_epoch', type=int, default=0)
     parser.add_argument('--epochs', type=int, default=10)
-    parser.add_argument('--batch', type=int, default=32)
+    parser.add_argument('--batch', type=int, default=128)
     parser.add_argument('--lr', type=float, default=1e-3)
     parser.add_argument('--momentum', type=float, default=0.9)
     parser.add_argument('--wd', type=float, default=1e-4)
     parser.add_argument('--save_to', type=str, default="DMHP_Metrics", help='directory for saving metrics')
     parser.add_argument('--seed', type=int)
     parser.add_argument('--workers', type=int, default=4, help='number of workers for dataloader')
-    parser.add_argument('--device', type=str, default='cpu')
+    parser.add_argument('--device', type=str, default='cuda')
     parser.add_argument('--verbose', action='store_true')
-    parser.add_argument('--nruns', type=int, default=1, help='number of trials')
+    parser.add_argument('--nruns', type=int, default=3, help='number of trials')
     parser.add_argument('--type', type=str, default=None, help='if it is a')
 
     parser.add_argument('--result_path', type=str, help='path to save results')
@@ -75,14 +75,17 @@ def main(args):
     if Path(args.data_dir, 'clusters.csv').exists():
         gt_ids = pd.read_csv(Path(args.data_dir, 'clusters.csv'))['cluster_id'].to_numpy()
         gt_ids = torch.LongTensor(gt_ids)
-    
+    if args.ext == "pkl":
+        with open(Path(args.data_dir, "fx_labels"), "rb") as fp:
+            gt_ids = pickle.load(fp)[:100000]
+            gt_ids = torch.LongTensor(gt_ids)
     N = len(ss)
 #     D = 5 # the dimension of Hawkes processes
     w = 1
     
 #     basis_fs = [lambda x: torch.exp(- x**2 / (3.*(k+1)**2) ) for k in range(D)]
     
-    not_tune = False
+    not_tune = True
     if args.ext == 'txt':
         eps = 1e6
         not_tune = True

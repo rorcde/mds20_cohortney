@@ -35,7 +35,7 @@ def load_data(data_dir, maxsize=None, maxlen=-1, ext='txt', datetime=True, type_
     event_col = 'event'
     if ext == "tar.gz" or "pkl":
         if ext == "pkl":
-            df = pd.read_pickle(Path(data_dir, "fx_data.pkl"))
+            df = pd.read_pickle(Path(data_dir, "fx_data.pkl"))[:100000]
             for i in range (df.shape[0]):
                 data = {'time': [df.iloc[i]['time']], 'event': [df.iloc[i]['ud']]}
                 df_data = pd.DataFrame(data=data)
