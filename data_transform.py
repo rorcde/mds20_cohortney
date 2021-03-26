@@ -113,8 +113,12 @@ def tranform_data(args):
     if args.ext == "pkl":
         with open(Path(args.data_dir, "fx_labels"), "rb") as fp:
             gt_ids = pickle.load(fp)[:maxsize]
-            gt = {'cluster_id': gt_ids}
-            print(gt_ids)
+            labels = np.unique(gt_ids)
+            gt_data = []
+            for i in range (len(gt_ids)):
+                gt_data.append(labels[np.nonzero(gt_ids[i] == labels)])
+            gt = {'cluster_id': gt_data}
+            print(gt_data)
             gt_table = pd.DataFrame(data=gt)
             gt_table.to_csv(Path(save_dir, 'clusters.csv'))
     if Path(args.data_dir, 'clusters.csv').exists():
