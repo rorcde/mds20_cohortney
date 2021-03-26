@@ -116,7 +116,7 @@ def tranform_data(args):
             labels = np.unique(gt_ids)
             gt_data = []
             for i in range (len(gt_ids)):
-                gt_data.append(labels[np.nonzero(gt_ids[i] == labels)])
+                gt_data.append(np.nonzero(gt_ids[i] == labels))
             gt = {'cluster_id': gt_data}
             print(gt_data)
             gt_table = pd.DataFrame(data=gt)
