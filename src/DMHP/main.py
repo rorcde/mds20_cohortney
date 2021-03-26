@@ -34,11 +34,7 @@ def random_seed(seed):
 def parse_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument('--data_dir', type=str, required=True, help='dir holding sequences as separate files')
-    parser.add_argument('--maxsize', type=int, default=None, help='max number of sequences')
     parser.add_argument('--nmb_cluster', type=int, default=10, help='number of clusters')
-    parser.add_argument('--maxlen', type=int, default=500, help='maximum length of sequence')
-    parser.add_argument('--ext', type=str, default='txt', help='extention of files with sequences')
-    parser.add_argument('--not_datetime', action='store_true', help='if time values in event sequences are represented in datetime format')
     # hyperparameters for Cohortney
     parser.add_argument('--gamma', type=float, default=1.4)
     parser.add_argument('--Tb', type=float, default=7e-6)
@@ -69,16 +65,7 @@ torch.set_printoptions(threshold=10000)
 
 def main(args):
     device = torch.device(args.device if torch.cuda.is_available() else 'cpu')
-    ss, Ts, class2idx = load_data(Path(args.data_dir), maxsize=args.maxsize, maxlen=args.maxlen, ext=args.ext, datetime=not args.not_datetime, type_=args.type)
-    
-    gt_ids = None
-    if Path(args.data_dir, 'clusters.csv').exists():
-        gt_ids = pd.read_csv(Path(args.data_dir, 'clusters.csv'))['cluster_id'].to_numpy()
-        gt_ids = torch.LongTensor(gt_ids)
-    if args.ext == "pkl":
-        with open(Path(args.data_dir, "fx_labels"), "rb") as fp:
-            gt_ids = pickle.load(fp)[:100000]
-            gt_ids = torch.LongTensor(gt_ids)
+    ss, Ts, class2idx, gt_ids = load_data(Path(args.data_dir))
     N = len(ss)
 #     D = 5 # the dimension of Hawkes processes
     w = 1
@@ -86,20 +73,12 @@ def main(args):
 #     basis_fs = [lambda x: torch.exp(- x**2 / (3.*(k+1)**2) ) for k in range(D)]
     
     not_tune = True
-    if args.ext == 'txt':
-        eps = 1e6
-        not_tune = True
-    else:
-        eps = 1e5
-    if args.type == 'booking1' or args.type == 'booking2':
-        eps = 1e2
+    eps = 1e5
     basis_fs = tune_basis_fn(ss, eps=eps, not_tune=not_tune)
     D = len(basis_fs) # the dimension of Hawkes processes
     hp = PointProcessStorage(ss, Ts, basis_fs)
-
     C = len(class2idx)
     K = args.nmb_cluster
-
     niter = 10
     labels = torch.zeros(args.nruns, len(ss))
     info_score = np.zeros((K+1, K+1))
@@ -162,7 +141,8 @@ def main(args):
             "Purity": f'{pur_val_mean:.4f}+-{pur_val_std:.4f}' ,
             "Mean run time": f'{time_mean:.4f}+-{time_std:.4f}',
             "Normalized mutual info score:": f'{info_score}',
-            "Predictive log likelihood:":f'{nll_mean.item():.4f}+-{nll_std.item():.4f}'
+            "Predictive log likelihood:":f'{nll_mean.item():.4f}+-{nll_std.item():.4f}',
+            "Predicted labels":f'{labels}'
         }
         with open(Path(args.data_dir, args.save_to), "w") as f:
             json.dump(metrics, f, indent=4)
