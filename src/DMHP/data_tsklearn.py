@@ -106,6 +106,7 @@ def load_data(args):
     Ts1 = np.zeros((len(Ts), events, Ts.shape[2]))
     for i in range(len(Ts)):
         Ts1[i] = Ts[i][:events]
+    print(Ts1[:2])
     model = TimeSeriesKMeans(n_clusters=K, metric="softdtw", max_iter=5)
     labels1 = model.fit_predict(Ts1)
     

@@ -110,17 +110,26 @@ def tranform_data(args):
                 "seq_nmb": seq_nmb
             }
     gt_ids = None
-    if args.ext == "csv":
+    if ext == "csv_label":
+        classes = set()
+        ext='csv'
         gt_ids=[]
-        for file in sorted(os.listdir(data_dir), key=lambda x: int(re.sub(fr'.{ext}', '', x)) if re.sub(fr'.{ext}', '', x).isdigit() else 0):
+
+        df = pd.read_csv(data_dir)
+        ids = np.unique(df['id'])
+        for i in ids:
             
-            if file.endswith(f'.{ext}') and re.sub(fr'.{ext}', '', file).isnumeric():
-                if maxsize is None or nb_files < maxsize:
-                    nb_files += 1
-                else:
-                    break
-                df = pd.read_csv(Path(data_dir, file))
-                gt_ids.append(df['event'][0])
+            data = df[df['id']==i]
+            print('\n', data['label'])
+            gt_ids.append(data['label'].to_numpy()[1])
+            df_data = pd.DataFrame(data=data)
+            classes = classes.union(set(df_data[event_col].unique()))
+            #if datetime:
+                #df_data[time_col] = pd.to_datetime(df_data[time_col])
+                #df_data[time_col] = (df_data[time_col] - df_data[time_col][0]) / np.timedelta64(1,'D')
+            os.mknod(Path(save_dir,f'{i+1}.csv'))
+            df_data.to_csv(Path(save_dir,f'{i+1}.csv'))
+        
         labels = np.unique(gt_ids)
         gt_data = []
         for i in range (len(gt_ids)):
@@ -129,7 +138,11 @@ def tranform_data(args):
         print(gt_ids)
         gt_table = pd.DataFrame(data=gt)
         gt_table.to_csv(Path(save_dir, 'clusters.csv'))
-                
+        classes = list(classes)
+        info = {
+                "classes": classes,
+                "seq_nmb": len(ids)
+            }
 
     if args.ext == "pkl":
         with open(Path(args.data_dir, "fx_labels"), "rb") as fp:
@@ -145,6 +158,8 @@ def tranform_data(args):
     if Path(args.data_dir, 'clusters.csv').exists():
         gt_ids = pd.read_csv(Path(args.data_dir, 'clusters.csv'))[:(maxsize)]
         gt_ids.to_csv(Path(save_dir, 'clusters.csv'))
+    with open(Path(args.save_dir, 'info.json'), "w") as f:
+        json.dump(info, f, indent=4)
     return 'Data transforming completed' 
 
 
