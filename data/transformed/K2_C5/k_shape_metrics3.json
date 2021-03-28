@@ -1,0 +1,6 @@
+{
+    "Purity": "1.0000",
+    "Mean run time": "0.1691",
+    "Normalized mutual info score:": "[[0. 0. 1.]\n [0. 1. 1.]\n [1. 1. 1.]]",
+    "Predicted labels": "tensor([0, 0, 0, 0, 0, 0, 0])"
+}
