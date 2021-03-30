@@ -65,8 +65,11 @@ def load_data(args):
     """
     data_dir = args.data_dir
     K = args.K
+
+    gt = pd.read_csv(Path(data_dir, 'clusters.csv'))['cluster_id'].to_numpy()
+    K = len(np.unique(gt))
+    seq_nmb = len(gt)
     events = args.events
-    seq_nmb = 10000
     nb_files = 0
     time_col = 'time'
     event_col = 'event'
@@ -78,19 +81,22 @@ def load_data(args):
     ts = []
     
     leng = 0
+    events_arr0 = []
     for i in range(1, seq_nmb+1):
         f = pd.read_csv(Path(data_dir, f'{i}.csv'))
         leng = max(leng, len(f[event_col]))
+        for event in f[event_col].to_numpy():
+            events_arr0.append(event)
+    events_arr=np.unique(events_arr0)
     for i in range(1, seq_nmb+1):
       print (i)
       f = pd.read_csv(Path(data_dir, f'{i}.csv'))
       if f[time_col].to_numpy()[-1] < 0:
              continue
-
-      for event_type in range(events):
+      for event_type in range(len(events_arr)):
           d = np.zeros(leng)#(len(f[event_col]))
           print("d shape", d.shape)
-          dat = f[f[event_col] == event_type][time_col].to_numpy()
+          dat = f[f[event_col] == events_arr[event_type]][time_col].to_numpy()
           for k in range (len(dat)):
             d[k]= dat[k]
           #print("Appendingevent \n", event_type)
@@ -105,6 +111,41 @@ def load_data(args):
         Ts1[i] = Ts[i][:events]
     print(Ts1[i][:2])
     model = KShape(n_clusters=K, max_iter=5)
+    labels1 = model.fit_predict(Ts1)
+    
+    print('Model', labels1[:3])
+    labels = torch.LongTensor(labels1)
+    print('labels',labels)
+    
+    print('gt', gt)
+    gt_ids = torch.LongTensor(gt)
+    print('gt', len(gt_ids))
+    times = time.clock() - time_start
+    if gt_ids is not None:
+        pur_val_mean =purity(labels, gt_ids) 
+    print(f'Purity: {pur_val_mean:.4f}')
+        #print(f'Normalized mutual info score: {info_score}')
+    print(f'Mean run time: {times}')
+    if (gt_ids is not None):
+        metrics = {
+            "Purity": f'{pur_val_mean:.4f}' ,
+            "Mean run time": f'{times:.4f}',
+            "Normalized mutual info score:": f'{info_score}',
+            #"Predictive log likelihood:":f'{log_loss(gt_ids, labels):.4f}',
+            "Predicted labels":f'{labels}'
+        }
+        with open(Path(args.data_dir, "k_shape_metrics.json"), "w") as f:
+            json.dump(metrics, f, indent=4)
+    else:
+        metrics = {
+            "Mean run time": f'{time_mean:.4f}+-{time_std:.4f}',
+            "Predictive log likelihood:":f'{nll_mean.item():.4f}+-{nll_std.item():.4f}',
+            "Predicted labels":f'{labels}'
+        }
+        with open(Path(args.data_dir, args.save_to), "w") as f:
+            json.dump(metrics, f, indent=4)
+    time_start = time.clock()
+    model = TimeSeriesKMeans(n_clusters=K, metric="softdtw", max_iter=5)
     labels1 = model.fit_predict(Ts1)
     
     print('Model', labels1[:3])
@@ -128,15 +169,7 @@ def load_data(args):
             #"Predictive log likelihood:":f'{log_loss(gt_ids, labels):.4f}',
             "Predicted labels":f'{labels}'
         }
-        with open(Path(args.data_dir, "k_shape_metrics.json"), "w") as f:
-            json.dump(metrics, f, indent=4)
-    else:
-        metrics = {
-            "Mean run time": f'{time_mean:.4f}+-{time_std:.4f}',
-            "Predictive log likelihood:":f'{nll_mean.item():.4f}+-{nll_std.item():.4f}',
-            "Predicted labels":f'{labels}'
-        }
-        with open(Path(args.data_dir, args.save_to), "w") as f:
+        with open(Path(args.data_dir, "k_means_metrics.json"), "w") as f:
             json.dump(metrics, f, indent=4)
     return ts
 args = parse_arguments()
