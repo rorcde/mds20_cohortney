@@ -76,33 +76,34 @@ def load_data(args):
     info_score = np.zeros((K+1, K+1))
     time_start = time.clock()
 
-  
+    ext = 'csv'
     data = []
     ts = []
     
     leng = 0
     events_arr0 = []
-    for i in range(1, seq_nmb+1):
-        f = pd.read_csv(Path(data_dir, f'{i}.csv'))
-        leng = max(leng, len(f[event_col]))
-        for event in f[event_col].to_numpy():
-            events_arr0.append(event)
+    for file in sorted(os.listdir(data_dir), key=lambda x: int(re.sub(fr'.{ext}', '', x)) if re.sub(fr'.{ext}', '', x).isdigit() else 0): 
+        if file.endswith(f'.{ext}') and re.sub(fr'.{ext}', '', file).isnumeric():
+            f = pd.read_csv(Path(data_dir, file))
+            leng = max(leng, len(f[event_col]))
+            for event in f[event_col].to_numpy():
+                events_arr0.append(event)
     events_arr=np.unique(events_arr0)
-    for i in range(1, seq_nmb+1):
-      print (i)
-      f = pd.read_csv(Path(data_dir, f'{i}.csv'))
-      if f[time_col].to_numpy()[-1] < 0:
-             continue
-      for event_type in range(len(events_arr)):
-          d = np.zeros(leng)#(len(f[event_col]))
-          print("d shape", d.shape)
-          dat = f[f[event_col] == events_arr[event_type]][time_col].to_numpy()
-          for k in range (len(dat)):
-            d[k]= dat[k]
-          #print("Appendingevent \n", event_type)
-          data.append(d)
-          
-      ts.append(asarray(data)) 
+    for file in sorted(os.listdir(data_dir), key=lambda x: int(re.sub(fr'.{ext}', '', x)) if re.sub(fr'.{ext}', '', x).isdigit() else 0): 
+        if file.endswith(f'.{ext}') and re.sub(fr'.{ext}', '', file).isnumeric():
+          f = pd.read_csv(Path(data_dir, file))
+          if f[time_col].to_numpy()[-1] < 0:
+                 continue
+          for event_type in range(len(events_arr)):
+              d = np.zeros(leng)#(len(f[event_col]))
+              print("d shape", d.shape)
+              dat = f[f[event_col] == events_arr[event_type]][time_col].to_numpy()
+              for k in range (len(dat)):
+                d[k]= dat[k]
+              #print("Appendingevent \n", event_type)
+              data.append(d)
+
+          ts.append(asarray(data)) 
     print('DS comleted')
     print(type(asarray(ts)[1]), asarray(ts)[1].shape)
     Ts = to_time_series_dataset((asarray(ts)))
@@ -123,9 +124,9 @@ def load_data(args):
     times = time.clock() - time_start
     if gt_ids is not None:
         pur_val_mean =purity(labels, gt_ids) 
-    print(f'Purity: {pur_val_mean:.4f}')
+    print(f'Purity kshap: {pur_val_mean:.4f}')
         #print(f'Normalized mutual info score: {info_score}')
-    print(f'Mean run time: {times}')
+    print(f'Mean run time kshape: {times}')
     if (gt_ids is not None):
         metrics = {
             "Purity": f'{pur_val_mean:.4f}' ,
@@ -158,8 +159,8 @@ def load_data(args):
     times = time.clock() - time_start
     if gt_ids is not None:
         pur_val_mean =purity(labels, gt_ids) 
-        #print(f'Purity: {pur_val_mean:.4f}+-{pur_val_std:.4f}')
-        #print(f'Normalized mutual info score: {info_score}')
+        print(f'Purity kmeans: {pur_val_mean:.4f}')
+        print(f'time kmeans: {times}')
     #print(f'Mean run time: {time_mean:.4f}+-{time_std:.4f}')
     if (gt_ids is not None):
         metrics = {

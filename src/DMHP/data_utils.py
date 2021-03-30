@@ -41,21 +41,23 @@ def load_data(data_dir):
     class2idx = {clas: idx for idx, clas in enumerate(classes)}
 
     ss, Ts = [], []
-    for i in range(1, seq_nmb+1):
-      user_dict = dict()
-      f = pd.read_csv(Path(data_dir, f'{i}.csv'))
-      if f[time_col].to_numpy()[-1] < 0:
-             continue
-    
-      f[event_col].replace(class2idx, inplace=True)
-      for event_type in class2idx.values():
-          dat = f[f[event_col] == event_type]
- 
+    ext = 'csv'
+    for file in sorted(os.listdir(data_dir), key=lambda x: int(re.sub(fr'.{ext}', '', x)) if re.sub(fr'.{ext}', '', x).isdigit() else 0):
+        if file.endswith(f'.{ext}') and re.sub(fr'.{ext}', '', file).isnumeric():
+          user_dict = dict()
+          f = pd.read_csv(Path(data_dir, file))
+          if f[time_col].to_numpy()[-1] < 0:
+                 continue
 
-      st = np.vstack([f[time_col].to_numpy(), f[event_col].to_numpy()])
-      tens = torch.FloatTensor(st.astype(np.float32)).T
-      ss.append(tens)
-      Ts.append(tens[-1, 0])
+          f[event_col].replace(class2idx, inplace=True)
+          for event_type in class2idx.values():
+              dat = f[f[event_col] == event_type]
+
+
+          st = np.vstack([f[time_col].to_numpy(), f[event_col].to_numpy()])
+          tens = torch.FloatTensor(st.astype(np.float32)).T
+          ss.append(tens)
+          Ts.append(tens[-1, 0])
     Ts = torch.FloatTensor(Ts)
     print ('Data processing completed')
     return ss, Ts, class2idx, gt_ids
